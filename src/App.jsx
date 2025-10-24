@@ -10,6 +10,7 @@ import { useModelStatus } from "./hooks/useModelStatus";
 import { Mic, Settings, History, Copy, Download } from "lucide-react";
 import SettingsPanel from "./components/SettingsPanel";
 import { ModelDownloadProgress } from "./components/ui/model-status-indicator";
+import SplashScreen from "./components/SplashScreen";
 
 // 动态导入设置页面组件
 const SettingsPage = React.lazy(() => import('./settings.jsx').then(module => ({ default: module.SettingsPage })));
@@ -196,6 +197,9 @@ export default function App() {
   // 检查URL参数来决定渲染哪个页面
   const urlParams = new URLSearchParams(window.location.search);
   const page = urlParams.get('page');
+  
+  // 启动画面状态
+  const [showSplash, setShowSplash] = useState(true);
   
   // 所有 Hooks 必须在条件语句之前调用
   const [isHovered, setIsHovered] = useState(false);
@@ -640,6 +644,15 @@ export default function App() {
   };
 
   const micProps = getMicButtonProps();
+
+  // 显示启动画面
+  if (showSplash) {
+    return (
+      <SplashScreen 
+        onComplete={() => setShowSplash(false)} 
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 pb-4">
