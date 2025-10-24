@@ -50,7 +50,7 @@ class ErrorBoundary extends React.Component {
               蛐蛐遇到了一个意外错误。请尝试重启应用。
             </p>
             
-            {process.env.NODE_ENV === 'development' && (
+            {import.meta.env.DEV && (
               <details className="mb-4">
                 <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
                   查看错误详情
@@ -127,7 +127,7 @@ function initializeApp() {
   })
 
   // 防止右键菜单（生产环境）
-  if (process.env.NODE_ENV === 'production') {
+  if (import.meta.env.PROD) {
     document.addEventListener('contextmenu', (e) => {
       e.preventDefault()
     })
@@ -167,7 +167,7 @@ root.render(
 )
 
 // 开发环境下的热重载支持
-if (process.env.NODE_ENV === 'development') {
+if (import.meta.env.DEV) {
   if (import.meta.hot) {
     import.meta.hot.accept('./App.jsx', (newModule) => {
       if (newModule) {
@@ -185,7 +185,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // 性能监控（开发环境）
-if (process.env.NODE_ENV === 'development') {
+if (import.meta.env.DEV) {
   // 监控渲染性能
   const observer = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {

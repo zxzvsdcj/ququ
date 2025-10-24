@@ -7,8 +7,7 @@ import { useWindowDrag } from "./hooks/useWindowDrag";
 import { useRecording } from "./hooks/useRecording";
 import { useTextProcessing } from "./hooks/useTextProcessing";
 import { useModelStatus } from "./hooks/useModelStatus";
-import { usePermissions } from "./hooks/usePermissions";
-import { Mic, MicOff, Settings, History, Copy, Download } from "lucide-react";
+import { Mic, Settings, History, Copy, Download } from "lucide-react";
 import SettingsPanel from "./components/SettingsPanel";
 import { ModelDownloadProgress } from "./components/ui/model-status-indicator";
 
@@ -198,6 +197,16 @@ export default function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const page = urlParams.get('page');
   
+  // 所有 Hooks 必须在条件语句之前调用
+  const [isHovered, setIsHovered] = useState(false);
+  const [originalText, setOriginalText] = useState("");
+  const [processedText, setProcessedText] = useState("");
+  const [showTextArea, setShowTextArea] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  const { isDragging, handleMouseDown, handleMouseMove, handleMouseUp, handleClick } = useWindowDrag();
+  const modelStatus = useModelStatus();
+  
   // 如果是设置页面，直接渲染设置组件
   if (page === 'settings') {
     return (
@@ -213,15 +222,6 @@ export default function App() {
       </React.Suspense>
     );
   }
-
-  const [isHovered, setIsHovered] = useState(false);
-  const [originalText, setOriginalText] = useState("");
-  const [processedText, setProcessedText] = useState("");
-  const [showTextArea, setShowTextArea] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  
-  const { isDragging, handleMouseDown, handleMouseMove, handleMouseUp, handleClick } = useWindowDrag();
-  const modelStatus = useModelStatus();
   
   const {
     isRecording,
