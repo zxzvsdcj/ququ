@@ -8,8 +8,5 @@ cdCommand = "cd /d " & Chr(34) & scriptPath & Chr(34)
 ' 启动应用，隐藏命令行窗口
 WshShell.Run "cmd /c " & cdCommand & " && pnpm run dev", 0, False
 
-' 等待一下确保应用启动
-WScript.Sleep 2000
-
-' 可选：显示启动状态
-MsgBox "蛐蛐应用已启动！" & vbCrLf & vbCrLf & "提示：应用在后台运行，请查看系统托盘图标。", vbInformation, "蛐蛐启动器"
+' 静默启动，不显示任何弹窗
+' 应用启动后会自动在系统托盘中显示图标

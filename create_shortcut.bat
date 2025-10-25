@@ -17,7 +17,7 @@ if %errorlevel% neq 0 (
 )
 
 echo [2/3] 创建桌面快捷方式...
-powershell -Command "& {$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\蛐蛐.lnk'); $Shortcut.TargetPath = '%~dp0start_ququ_simple.vbs'; $Shortcut.WorkingDirectory = '%~dp0'; $Shortcut.Description = '蛐蛐 - 智能语音转文字应用'; $Shortcut.IconLocation = '%~dp0assets\icon.ico'; $Shortcut.Save()}"
+powershell -Command "& {$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%USERPROFILE%\Desktop\蛐蛐.lnk'); $Shortcut.TargetPath = '%~dp0start_ququ_silent.vbs'; $Shortcut.WorkingDirectory = '%~dp0'; $Shortcut.Description = '蛐蛐 - 智能语音转文字应用'; $Shortcut.IconLocation = '%~dp0assets\icon.ico'; $Shortcut.Save()}"
 
 if %errorlevel% neq 0 (
     echo ❌ 创建快捷方式失败
