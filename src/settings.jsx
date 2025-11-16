@@ -52,7 +52,7 @@ const SettingsPage = () => {
           ai_api_key: allSettings.ai_api_key || "",
           ai_base_url: allSettings.ai_base_url || "https://api.openai.com/v1",
           ai_model: allSettings.ai_model || "gpt-3.5-turbo",
-          enable_ai_optimization: allSettings.enable_ai_optimization !== false, // 默认为true
+          enable_ai_optimization: allSettings.enable_ai_optimization === undefined ? true : allSettings.enable_ai_optimization,
           hotkey: allSettings.hotkey || "CommandOrControl+Shift+Space"
         };
         setSettings(prev => ({ ...prev, ...loadedSettings }));

@@ -231,27 +231,25 @@ export const useModelStatus = () => {
 
   // 初始化时检查状态
   useEffect(() => {
-    if (isControlPanelOrSettings()) {
-      console.log('控制面板或设置页面，跳过模型状态检查');
-      return;
-    }
-    
     checkModelStatus();
   }, [checkModelStatus]);
 
-  // 设置定期检查（仅在主窗口且模型未就绪时）
+  // 设置定期检查（所有窗口都检查，但频率不同）
   useEffect(() => {
-    if (isControlPanelOrSettings() || modelStatus.isReady || modelStatus.isDownloading) {
+    if (modelStatus.isReady || modelStatus.isDownloading) {
       return;
     }
 
-    const interval = setInterval(() => {
+    // 控制面板和设置页面使用较长的检查间隔（减少资源消耗）
+    const interval = isControlPanelOrSettings() ? 5000 : 3000;
+    
+    const timer = setInterval(() => {
       if (!modelStatus.isReady && !modelStatus.isDownloading) {
         checkModelStatus();
       }
-    }, 3000); // 减少间隔，确保及时检测到状态变化
+    }, interval);
 
-    return () => clearInterval(interval);
+    return () => clearInterval(timer);
   }, [modelStatus.isReady, modelStatus.isDownloading, checkModelStatus]);
 
   // 监听下载进度事件

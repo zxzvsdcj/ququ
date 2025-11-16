@@ -9,9 +9,12 @@ class WindowManager {
     this.settingsWindow = null;
   }
 
-  async createMainWindow() {
+  async createMainWindow(showWindow = true) {
     if (this.mainWindow) {
-      this.mainWindow.focus();
+      if (showWindow) {
+        this.mainWindow.show();
+        this.mainWindow.focus();
+      }
       return this.mainWindow;
     }
 
@@ -24,6 +27,7 @@ class WindowManager {
       resizable: false,
       skipTaskbar: true,
       movable: true,
+      show: showWindow, // 根据参数决定是否显示
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,

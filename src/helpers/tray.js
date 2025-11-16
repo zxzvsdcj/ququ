@@ -92,13 +92,12 @@ class TrayManager {
       {
         label: "控制面板",
         click: () => {
-          if (this.controlPanelWindow) {
-            this.controlPanelWindow.show();
-            this.controlPanelWindow.focus();
-          } else if (this.createControlPanelCallback) {
-            this.createControlPanelCallback().then(() => {
-              if (this.controlPanelWindow) {
-                this.controlPanelWindow.show();
+          // 始终通过回调函数来处理，确保获取最新的窗口引用
+          if (this.createControlPanelCallback) {
+            this.createControlPanelCallback().then((window) => {
+              if (window) {
+                window.show();
+                window.focus();
               }
             });
           }
@@ -106,9 +105,29 @@ class TrayManager {
       },
       { type: "separator" },
       {
+        label: "设置",
+        click: () => {
+          if (this.openSettingsCallback) {
+            this.openSettingsCallback();
+          }
+        }
+      },
+      {
         label: "关于",
         click: () => {
-          // TODO: 显示关于对话框
+          if (this.showAboutCallback) {
+            this.showAboutCallback();
+          } else {
+            // 显示简单的关于对话框
+            const { dialog } = require("electron");
+            dialog.showMessageBox({
+              type: "info",
+              title: "关于蛐蛐",
+              message: "蛐蛐 (QuQu)",
+              detail: "基于FunASR和AI的中文语音转文字应用\n\n• 高精度中文语音识别\n• AI智能文本优化\n• 实时语音处理\n• 隐私保护设计",
+              buttons: ["确定"]
+            });
+          }
         }
       },
       { type: "separator" },

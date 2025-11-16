@@ -238,11 +238,11 @@ async function startApp() {
     logger.warn("FunASR在启动时不可用，这不是关键问题", err);
   });
 
-  // 创建主窗口
+  // 创建主窗口（启动时不显示，只在后台加载）
   try {
-    logger.info('创建主窗口...');
-    await windowManager.createMainWindow();
-    logger.info('主窗口创建成功');
+    logger.info('创建主窗口（后台模式）...');
+    await windowManager.createMainWindow(false); // false = 不显示窗口
+    logger.info('主窗口创建成功（已隐藏）');
   } catch (error) {
     logger.error("创建主窗口时出错:", error);
   }
@@ -265,6 +265,10 @@ async function startApp() {
   trayManager.setCreateControlPanelCallback(() =>
     windowManager.createControlPanelWindow()
   );
+  // 添加打开设置窗口的回调
+  trayManager.openSettingsCallback = () => {
+    windowManager.showSettingsWindow();
+  };
   await trayManager.createTray();
   logger.info('系统托盘设置完成');
 

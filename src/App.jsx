@@ -197,9 +197,10 @@ export default function App() {
   // 检查URL参数来决定渲染哪个页面
   const urlParams = new URLSearchParams(window.location.search);
   const page = urlParams.get('page');
+  const isControlPanel = urlParams.get('panel') === 'control';
   
-  // 启动画面状态
-  const [showSplash, setShowSplash] = useState(true);
+  // 启动画面状态 - 控制面板不显示启动画面
+  const [showSplash, setShowSplash] = useState(!isControlPanel);
   
   // 所有 Hooks 必须在条件语句之前调用
   const [isHovered, setIsHovered] = useState(false);
@@ -210,6 +211,13 @@ export default function App() {
   
   const { isDragging, handleMouseDown, handleMouseMove, handleMouseUp, handleClick } = useWindowDrag();
   const modelStatus = useModelStatus();
+  
+  // 如果模型已就绪，自动跳过启动画面
+  useEffect(() => {
+    if (modelStatus.isReady && showSplash) {
+      setShowSplash(false);
+    }
+  }, [modelStatus.isReady, showSplash]);
   
   // 如果是设置页面，直接渲染设置组件
   if (page === 'settings') {
