@@ -252,6 +252,13 @@ class IPCHandlers {
       return true;
     });
 
+    ipcMain.handle("set-main-window-always-on-top", (event, value) => {
+      if (this.windowManager.mainWindow) {
+        this.windowManager.mainWindow.setAlwaysOnTop(value);
+      }
+      return true;
+    });
+
     ipcMain.handle("show-control-panel", () => {
       this.windowManager.showControlPanel();
       return true;

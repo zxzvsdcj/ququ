@@ -28,7 +28,9 @@
     "dist": "npm run prepare:python:embedded && npm run build:renderer && electron-builder",
     "lint": "cd src && eslint .",
     "preview": "cd src && vite preview",
-    "clean": "node cleanup.js && rm -rf python"
+    "clean": "node cleanup.js && rm -rf python",
+    "build:all": "node scripts/build-all-platforms.js",
+    "release:prepare": "node scripts/prepare-release.js"
   },
   "keywords": [
     "dictation",

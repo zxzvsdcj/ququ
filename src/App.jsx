@@ -7,7 +7,7 @@ import { useWindowDrag } from "./hooks/useWindowDrag";
 import { useRecording } from "./hooks/useRecording";
 import { useTextProcessing } from "./hooks/useTextProcessing";
 import { useModelStatus } from "./hooks/useModelStatus";
-import { Mic, Settings, History, Copy, Download } from "lucide-react";
+import { Mic, Settings, History, Copy, Download, Pin } from "lucide-react";
 import SettingsPanel from "./components/SettingsPanel";
 import { ModelDownloadProgress } from "./components/ui/model-status-indicator";
 import SplashScreen from "./components/SplashScreen";
@@ -208,6 +208,7 @@ export default function App() {
   const [processedText, setProcessedText] = useState("");
   const [showTextArea, setShowTextArea] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
   
   const { isDragging, handleMouseDown, handleMouseMove, handleMouseUp, handleClick } = useWindowDrag();
   const modelStatus = useModelStatus();
@@ -315,6 +316,10 @@ export default function App() {
   // 处理AI优化完成
   const handleAIOptimizationComplete = useCallback(async (optimizedResult) => {
     console.log('AI优化完成回调被触发:', optimizedResult);
+    
+    // 检查是否启用了AI优化
+    const useAI = window.electronAPI ? await window.electronAPI.getSetting('enable_ai_optimization', true) : true;
+    
     if (optimizedResult.success && optimizedResult.enhanced_by_ai && optimizedResult.text) {
       // 显示AI优化后的文本
       setProcessedText(optimizedResult.text);
@@ -328,11 +333,19 @@ export default function App() {
       console.log('AI优化文本已设置:', optimizedResult.text);
     } else {
       console.warn('AI优化结果无效，使用原始文本:', optimizedResult);
-      // 如果AI优化失败，则粘贴原始文本
+      // 粘贴原始文本
       if (originalText) {
-        console.log("📋 AI优化失败，粘贴原始文本:", originalText);
+        console.log("📋 粘贴原始文本:", originalText);
         await safePaste(originalText);
-        toast.info("AI优化失败，已粘贴原始识别文本");
+        
+        // 根据AI优化是否启用显示不同的提示
+        if (useAI) {
+          // AI优化功能已启用但失败
+          toast.info("AI优化失败，已粘贴原始识别文本");
+        } else {
+          // AI优化功能已关闭
+          toast.success("已粘贴识别文本");
+        }
       }
     }
   }, [safePaste, originalText]);
@@ -521,6 +534,37 @@ export default function App() {
     }
   };
 
+  // 加载置顶状态
+  useEffect(() => {
+    const loadAlwaysOnTopSetting = async () => {
+      if (window.electronAPI) {
+        try {
+          const savedValue = await window.electronAPI.getSetting('mainWindowAlwaysOnTop', false);
+          setIsAlwaysOnTop(savedValue);
+        } catch (error) {
+          console.error('加载置顶设置失败:', error);
+        }
+      }
+    };
+    loadAlwaysOnTopSetting();
+  }, []);
+
+  // 切换置顶状态
+  const toggleAlwaysOnTop = async () => {
+    if (window.electronAPI) {
+      try {
+        const newValue = !isAlwaysOnTop;
+        await window.electronAPI.setMainWindowAlwaysOnTop(newValue);
+        await window.electronAPI.setSetting('mainWindowAlwaysOnTop', newValue);
+        setIsAlwaysOnTop(newValue);
+        toast.success(newValue ? '窗口已置顶' : '窗口已取消置顶');
+      } catch (error) {
+        console.error('切换置顶状态失败:', error);
+        toast.error('切换置顶状态失败');
+      }
+    }
+  };
+
 
   // 监听全局热键触发事件
   useEffect(() => {
@@ -677,6 +721,14 @@ export default function App() {
             蛐蛐
           </h1>
           <div className="flex items-center space-x-3 non-draggable">
+            <Tooltip content={isAlwaysOnTop ? "取消置顶" : "窗口置顶"} position="bottom">
+              <button
+                onClick={toggleAlwaysOnTop}
+                className="p-3 hover:bg-white/70 dark:hover:bg-gray-700/70 rounded-xl transition-colors shadow-sm"
+              >
+                <Pin className={`w-6 h-6 transition-colors ${isAlwaysOnTop ? 'text-blue-500' : 'text-gray-400 dark:text-gray-500'}`} />
+              </button>
+            </Tooltip>
             <Tooltip content="历史记录" position="bottom">
               <button
                 onClick={handleOpenHistory}

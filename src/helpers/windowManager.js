@@ -23,7 +23,7 @@ class WindowManager {
       height: 500,
       frame: false,
       transparent: true,
-      alwaysOnTop: true,
+      alwaysOnTop: false, // 默认不置顶，由用户控制
       resizable: false,
       skipTaskbar: true,
       movable: true,
