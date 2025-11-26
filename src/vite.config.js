@@ -27,7 +27,8 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, 'index.html'),
         history: path.resolve(__dirname, 'history.html'),
-        settings: path.resolve(__dirname, 'settings.html')
+        settings: path.resolve(__dirname, 'settings.html'),
+        floatBall: path.resolve(__dirname, 'floatBall.html')
       },
       output: {
         manualChunks: {

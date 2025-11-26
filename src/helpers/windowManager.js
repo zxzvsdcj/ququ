@@ -234,7 +234,7 @@ class WindowManager {
       return this.floatBallWindow;
     }
 
-    // Windows透明窗口配置
+    // 透明窗口配置
     const windowConfig = {
       width: 80,
       height: 80,
@@ -244,15 +244,18 @@ class WindowManager {
       resizable: false,
       skipTaskbar: true,
       movable: true,
-      show: false, // 先隐藏，等加载完成后再显示
+      show: false,
       hasShadow: false,
       title: '',
-      // Windows特定：使用thickFrame: false移除边框
       thickFrame: false,
+      backgroundColor: '#00000000',
+      // 关键：设置窗口类型
+      type: 'toolbar', // Windows上使用toolbar类型可以避免某些边框问题
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
         preload: path.join(__dirname, "..", "..", "preload.js"),
+        backgroundThrottling: false,
       },
     };
 
@@ -260,13 +263,15 @@ class WindowManager {
     if (process.platform === 'darwin') {
       windowConfig.titleBarStyle = 'customButtonsOnHover';
       windowConfig.vibrancy = 'under-window';
+      delete windowConfig.type; // macOS不需要type
     }
 
     this.floatBallWindow = new BrowserWindow(windowConfig);
 
-    // Windows上设置窗口为工具窗口类型，避免显示在任务栏
+    // Windows上额外设置
     if (process.platform === 'win32') {
       this.floatBallWindow.setSkipTaskbar(true);
+      this.floatBallWindow.setBackgroundColor('#00000000');
     }
 
     const isDev = process.env.NODE_ENV === "development";
@@ -279,27 +284,38 @@ class WindowManager {
       );
     }
 
-    // 加载完成后显示窗口
+    // 加载完成后显示窗口并注入CSS确保透明
     this.floatBallWindow.once('ready-to-show', () => {
+      // 注入CSS确保背景透明
+      this.floatBallWindow.webContents.insertCSS(`
+        html, body { 
+          background: transparent !important; 
+          background-color: transparent !important;
+        }
+      `);
       this.floatBallWindow.show();
     });
 
     // 如果ready-to-show没触发，延迟显示
     setTimeout(() => {
       if (this.floatBallWindow && !this.floatBallWindow.isVisible()) {
+        this.floatBallWindow.webContents.insertCSS(`
+          html, body { 
+            background: transparent !important; 
+            background-color: transparent !important;
+          }
+        `);
         this.floatBallWindow.show();
       }
     }, 500);
 
-    // 悬浮球窗口关闭时隐藏而不是销毁（但app退出时允许关闭）
+    // 悬浮球窗口关闭时隐藏而不是销毁
     this.floatBallWindow.on("close", (e) => {
-      // 检查是否是app退出导致的关闭
       const { app } = require("electron");
       if (!app.isQuitting) {
         e.preventDefault();
         this.floatBallWindow.hide();
       }
-      // 如果app正在退出，允许窗口正常关闭
     });
 
     this.floatBallWindow.on("closed", () => {
