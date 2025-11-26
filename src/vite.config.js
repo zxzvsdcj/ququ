@@ -13,7 +13,11 @@ export default defineConfig({
     port: 5173,
     host: 'localhost',
     strictPort: true,
-    cors: true
+    cors: true,
+    // 禁用HMR overlay，避免在透明窗口中显示
+    hmr: {
+      overlay: false
+    }
   },
   
   // 构建配置

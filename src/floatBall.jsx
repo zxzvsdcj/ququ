@@ -7,6 +7,8 @@ import { useHotkey } from './hooks/useHotkey';
 const FloatBall = () => {
   const [status, setStatus] = useState('idle'); // idle, recording, processing, error
   const [errorMessage, setErrorMessage] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartPos = useRef({ x: 0, y: 0 });
   
   const { isRecording, isProcessing, isOptimizing, startRecording, stopRecording } = useRecording();
   const modelStatus = useModelStatus();
@@ -19,6 +21,55 @@ const FloatBall = () => {
   useEffect(() => {
     stateRef.current = { isRecording, isProcessing, isOptimizing, modelStatus };
   }, [isRecording, isProcessing, isOptimizing, modelStatus]);
+
+  // JavaScript实现拖拽（避免-webkit-app-region导致的白色条问题）
+  const handleMouseDown = useCallback((e) => {
+    // 只响应左键
+    if (e.button !== 0) return;
+    
+    // 记录点击起始位置（用于区分点击和拖拽）
+    clickStartPos.current = { x: e.screenX, y: e.screenY };
+    
+    setIsDragging(true);
+    dragStartPos.current = { x: e.screenX, y: e.screenY };
+    
+    // 获取当前窗口位置
+    if (window.electronAPI && window.electronAPI.getWindowPosition) {
+      window.electronAPI.getWindowPosition().then(pos => {
+        dragStartPos.current.windowX = pos.x;
+        dragStartPos.current.windowY = pos.y;
+      });
+    }
+  }, []);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging) return;
+    
+    const deltaX = e.screenX - dragStartPos.current.x;
+    const deltaY = e.screenY - dragStartPos.current.y;
+    
+    if (window.electronAPI && window.electronAPI.setWindowPosition) {
+      const newX = (dragStartPos.current.windowX || 0) + deltaX;
+      const newY = (dragStartPos.current.windowY || 0) + deltaY;
+      window.electronAPI.setWindowPosition(newX, newY);
+    }
+  }, [isDragging]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // 添加全局鼠标事件监听
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   // 更新状态
   useEffect(() => {
@@ -48,9 +99,21 @@ const FloatBall = () => {
   }, [modelStatus.stage, modelStatus.error]);
 
   // 点击切换录音
+  // 记录鼠标按下位置，用于区分点击和拖拽
+  const clickStartPos = useRef({ x: 0, y: 0 });
+  
   const handleClick = useCallback((e) => {
     e.preventDefault();
-    e.stopPropagation(); // 阻止事件冒泡
+    e.stopPropagation();
+    
+    // 如果移动距离超过5像素，认为是拖拽而不是点击
+    const moveDistance = Math.sqrt(
+      Math.pow(e.screenX - clickStartPos.current.x, 2) +
+      Math.pow(e.screenY - clickStartPos.current.y, 2)
+    );
+    if (moveDistance > 5) {
+      return; // 是拖拽，不触发点击
+    }
     
     // 检查模型状态
     if (!modelStatus.isReady) {
@@ -248,6 +311,7 @@ const FloatBall = () => {
       id="float-ball"
       className={status}
       onClick={handleClick}
+      onMouseDown={handleMouseDown}
       onContextMenu={handleContextMenu}
       title={
         status === 'error' 
@@ -267,6 +331,11 @@ const FloatBall = () => {
 };
 
 // 挂载React应用
-const root = createRoot(document.getElementById('root') || document.body);
+// 创建一个新的根元素，因为HTML中的#float-ball是静态的
+const container = document.createElement('div');
+container.id = 'react-root';
+document.body.innerHTML = ''; // 清空body
+document.body.appendChild(container);
+const root = createRoot(container);
 root.render(<FloatBall />);
 

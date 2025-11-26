@@ -43,8 +43,8 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         /* 确保悬浮球完全独立，不受父元素影响 */
         flex-shrink: 0;
-        /* 悬浮球本身可拖拽 */
-        -webkit-app-region: drag;
+        /* 不使用CSS拖拽，改用JS实现 */
+        -webkit-app-region: no-drag;
         cursor: move;
       }
 

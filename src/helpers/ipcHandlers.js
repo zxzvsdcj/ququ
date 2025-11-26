@@ -1,4 +1,4 @@
-const { ipcMain } = require("electron");
+const { ipcMain, BrowserWindow } = require("electron");
 
 class IPCHandlers {
   constructor(managers) {
@@ -295,6 +295,25 @@ class IPCHandlers {
         this.windowManager.mainWindow.focus();
       }
       return true;
+    });
+
+    // 悬浮球窗口位置控制（用于JS拖拽，避免-webkit-app-region白色条问题）
+    ipcMain.handle("get-window-position", (event) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (win) {
+        const [x, y] = win.getPosition();
+        return { x, y };
+      }
+      return { x: 0, y: 0 };
+    });
+
+    ipcMain.handle("set-window-position", (event, x, y) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (win) {
+        win.setPosition(Math.round(x), Math.round(y));
+        return true;
+      }
+      return false;
     });
 
     // 悬浮球右键菜单

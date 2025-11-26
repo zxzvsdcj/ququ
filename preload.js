@@ -10,6 +10,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   setMainWindowAlwaysOnTop: (value) => ipcRenderer.invoke("set-main-window-always-on-top", value),
   switchUIMode: (mode) => ipcRenderer.invoke("switch-ui-mode", mode),
   showMainWindow: () => ipcRenderer.invoke("show-main-window"),
+  
+  // 悬浮球窗口位置控制（用于JS拖拽）
+  getWindowPosition: () => ipcRenderer.invoke("get-window-position"),
+  setWindowPosition: (x, y) => ipcRenderer.invoke("set-window-position", x, y),
 
   // 录音相关
   startRecording: () => ipcRenderer.invoke("start-recording"),
