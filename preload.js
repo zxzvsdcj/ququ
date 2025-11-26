@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   minimizeWindow: () => ipcRenderer.invoke("minimize-window"),
   closeWindow: () => ipcRenderer.invoke("close-window"),
   setMainWindowAlwaysOnTop: (value) => ipcRenderer.invoke("set-main-window-always-on-top", value),
+  switchUIMode: (mode) => ipcRenderer.invoke("switch-ui-mode", mode),
+  showMainWindow: () => ipcRenderer.invoke("show-main-window"),
 
   // 录音相关
   startRecording: () => ipcRenderer.invoke("start-recording"),
@@ -72,6 +74,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("f2-double-click", callback);
     return () => ipcRenderer.removeListener("f2-double-click", callback);
   },
+  
+  // 移除F2双击监听器
+  removeF2DoubleClickListener: () => {
+    ipcRenderer.removeAllListeners("f2-double-click");
+  },
+  
+  // 悬浮球右键菜单
+  showFloatBallContextMenu: () => ipcRenderer.invoke("show-float-ball-context-menu"),
   
   // 热键触发事件监听
   onHotkeyTriggered: (callback) => {

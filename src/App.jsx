@@ -273,9 +273,17 @@ export default function App() {
     try {
       if (window.electronAPI) {
         console.log("📱 使用 Electron API 进行粘贴");
-        await window.electronAPI.pasteText(text);
-        console.log("✅ 粘贴成功");
-        toast.success("文本已自动粘贴到当前输入框");
+        const result = await window.electronAPI.pasteText(text);
+        console.log("✅ 粘贴结果:", result);
+        
+        // 检查是否需要手动粘贴
+        if (result && result.requiresManualPaste) {
+          toast.info("文本已复制到剪贴板", {
+            description: result.message || "请按 Ctrl+V 粘贴"
+          });
+        } else {
+          toast.success("文本已自动粘贴到当前输入框");
+        }
       } else {
         // Web环境下只能复制到剪贴板
         console.log("🌐 Web环境，仅复制到剪贴板");
@@ -302,12 +310,20 @@ export default function App() {
       // 清空之前的处理结果，等待AI优化
       setProcessedText("");
 
-      // 不立即粘贴，等待AI优化完成后再粘贴
-      console.log("⏳ 等待AI优化完成后再进行粘贴...");
+      // 检查是否启用AI优化，显示不同提示
+      const useAI = window.electronAPI ? await window.electronAPI.getSetting('enable_ai_optimization', true) : true;
+      
+      if (useAI) {
+        // 不立即粘贴，等待AI优化完成后再粘贴
+        console.log("⏳ 等待AI优化完成后再进行粘贴...");
+        toast.success("🎤 语音识别完成，AI正在优化文本...");
+      } else {
+        // AI关闭时，提示即将粘贴
+        console.log("⚡ AI优化已关闭，准备立即粘贴原始文本...");
+        toast.success("🎤 语音识别完成，正在自动粘贴...");
+      }
       
       // 注意：不在这里保存到数据库，由 useRecording.js 统一处理保存逻辑
-
-      toast.success("🎤 语音识别完成，AI正在优化文本...");
     } else {
       console.log("❌ 转录失败或无文本:", transcriptionResult);
     }

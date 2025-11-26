@@ -152,42 +152,70 @@ export const useRecording = () => {
             window.onTranscriptionComplete({ ...transcriptionResult, enhanced_by_ai: false });
           }
 
-          // 异步处理AI优化和保存（只保存一次）
+          // 从设置中读取是否启用AI优化
+          const useAI = await window.electronAPI.getSetting('enable_ai_optimization', true);
+          
+          if (!useAI) {
+            // AI关闭：立即保存并粘贴，无延迟
+            if (window.electronAPI && window.electronAPI.log) {
+              window.electronAPI.log('info', 'AI优化已关闭，立即粘贴原始文本');
+            }
+            
+            try {
+              // 保存转录数据（不含AI优化）
+              const savedResult = await window.electronAPI.saveTranscription(transcriptionData);
+              if (window.electronAPI && window.electronAPI.log) {
+                window.electronAPI.log('info', '转录数据保存成功（无AI）:', savedResult);
+              }
+              
+              // 立即通知UI粘贴原始文本
+              if (window.onAIOptimizationComplete) {
+                window.onAIOptimizationComplete({
+                  ...transcriptionResult,
+                  text: raw_text,
+                  enhanced_by_ai: false,
+                });
+              }
+            } catch (err) {
+              if (window.electronAPI && window.electronAPI.log) {
+                window.electronAPI.log('error', '保存转录数据失败（无AI）:', err);
+              }
+            }
+            
+            return { ...transcriptionResult, enhanced_by_ai: false };
+          }
+
+          // AI开启：异步处理AI优化和保存
           setIsOptimizing(true);
           setTimeout(async () => {
             try {
-              // 从设置中读取是否启用AI优化
-              const useAI = await window.electronAPI.getSetting('enable_ai_optimization', true);
-
               let finalData = { ...transcriptionData };
 
-              if (useAI) {
-                try {
-                  if (window.electronAPI && window.electronAPI.log) {
-                    window.electronAPI.log('info', '开始AI文本优化:', raw_text.substring(0, 50) + '...');
-                  }
-                  
-                  const result = await window.electronAPI.processText(raw_text, 'optimize');
+              try {
+                if (window.electronAPI && window.electronAPI.log) {
+                  window.electronAPI.log('info', '开始AI文本优化:', raw_text.substring(0, 50) + '...');
+                }
+                
+                const result = await window.electronAPI.processText(raw_text, 'optimize');
 
-                  if (result && result.success) {
-                    const processed_text = result.text;
-                    finalData.processed_text = processed_text;
-                    // 如果AI优化后的文本与原始文本不同，则将优化后的文本作为主文本
-                    if (processed_text && processed_text.trim() !== raw_text.trim()) {
-                      finalData.text = processed_text;
-                    }
-                    if (window.electronAPI && window.electronAPI.log) {
-                      window.electronAPI.log('info', 'AI文本优化成功', processed_text.substring(0, 50) + '...');
-                    }
-                  } else {
-                    if (window.electronAPI && window.electronAPI.log) {
-                      window.electronAPI.log('error', 'AI文本优化失败:', result);
-                    }
+                if (result && result.success) {
+                  const processed_text = result.text;
+                  finalData.processed_text = processed_text;
+                  // 如果AI优化后的文本与原始文本不同，则将优化后的文本作为主文本
+                  if (processed_text && processed_text.trim() !== raw_text.trim()) {
+                    finalData.text = processed_text;
                   }
-                } catch (err) {
                   if (window.electronAPI && window.electronAPI.log) {
-                    window.electronAPI.log('error', 'AI文本优化捕获到错误:', err);
+                    window.electronAPI.log('info', 'AI文本优化成功', processed_text.substring(0, 50) + '...');
                   }
+                } else {
+                  if (window.electronAPI && window.electronAPI.log) {
+                    window.electronAPI.log('error', 'AI文本优化失败:', result);
+                  }
+                }
+              } catch (err) {
+                if (window.electronAPI && window.electronAPI.log) {
+                  window.electronAPI.log('error', 'AI文本优化捕获到错误:', err);
                 }
               }
 
@@ -202,7 +230,7 @@ export const useRecording = () => {
                 }
 
                 // 通知UI更新并触发复制操作
-                if (useAI && finalData.processed_text && finalData.processed_text !== raw_text) {
+                if (finalData.processed_text && finalData.processed_text !== raw_text) {
                   // 有AI优化结果时
                   const enhancedResult = {
                     ...transcriptionResult,
@@ -214,7 +242,7 @@ export const useRecording = () => {
                     window.onAIOptimizationComplete(enhancedResult);
                   }
                 } else {
-                  // 没有AI优化或AI优化失败时，使用原始文本
+                  // AI优化失败时，使用原始文本
                   const finalResult = {
                     ...transcriptionResult,
                     text: raw_text,

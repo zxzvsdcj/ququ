@@ -279,6 +279,84 @@ class IPCHandlers {
       return true;
     });
 
+    // UI模式切换
+    ipcMain.handle("switch-ui-mode", async (event, mode) => {
+      try {
+        await this.windowManager.switchUIMode(mode);
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle("show-main-window", () => {
+      if (this.windowManager.mainWindow) {
+        this.windowManager.mainWindow.show();
+        this.windowManager.mainWindow.focus();
+      }
+      return true;
+    });
+
+    // 悬浮球右键菜单
+    ipcMain.handle("show-float-ball-context-menu", (event) => {
+      const { Menu } = require("electron");
+      
+      const template = [
+        {
+          label: "显示主窗口",
+          click: async () => {
+            await this.windowManager.switchUIMode('full');
+          }
+        },
+        {
+          label: "控制面板",
+          click: () => {
+            this.windowManager.showControlPanel();
+          }
+        },
+        { type: "separator" },
+        {
+          label: "设置",
+          click: () => {
+            this.windowManager.showSettingsWindow();
+          }
+        },
+        {
+          label: "历史记录",
+          click: () => {
+            this.windowManager.showHistoryWindow();
+          }
+        },
+        { type: "separator" },
+        {
+          label: "关于",
+          click: () => {
+            const { dialog } = require("electron");
+            dialog.showMessageBox({
+              type: "info",
+              title: "关于蛐蛐",
+              message: "蛐蛐 (QuQu)",
+              detail: "基于FunASR和AI的中文语音转文字应用\n\n• 高精度中文语音识别\n• AI智能文本优化\n• 实时语音处理\n• 隐私保护设计",
+              buttons: ["确定"]
+            });
+          }
+        },
+        { type: "separator" },
+        {
+          label: "关闭",
+          click: () => {
+            // 隐藏悬浮球而不是退出程序
+            this.windowManager.hideFloatBallWindow();
+          }
+        }
+      ];
+      
+      const menu = Menu.buildFromTemplate(template);
+      menu.popup({ window: this.windowManager.floatBallWindow });
+      
+      return { success: true };
+    });
+
     ipcMain.handle("open-history-window", () => {
       this.windowManager.showHistoryWindow();
       return true;
@@ -328,10 +406,19 @@ class IPCHandlers {
           }
           
           const success = this.hotkeyManager.registerHotkey(hotkey, () => {
-            // 只发送热键触发事件到主窗口，避免重复触发
-            this.logger.info(`热键 ${hotkey} 被触发，发送事件到主窗口`);
+            // 发送热键触发事件到所有活动窗口（主窗口和悬浮球）
+            this.logger.info(`热键 ${hotkey} 被触发`);
+            
+            // 发送到主窗口
             if (this.windowManager && this.windowManager.mainWindow && !this.windowManager.mainWindow.isDestroyed()) {
               this.windowManager.mainWindow.webContents.send("hotkey-triggered", { hotkey });
+              this.logger.info(`热键事件已发送到主窗口`);
+            }
+            
+            // 发送到悬浮球窗口
+            if (this.windowManager && this.windowManager.floatBallWindow && !this.windowManager.floatBallWindow.isDestroyed()) {
+              this.windowManager.floatBallWindow.webContents.send("hotkey-triggered", { hotkey });
+              this.logger.info(`热键事件已发送到悬浮球窗口`);
             }
           });
           

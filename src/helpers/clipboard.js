@@ -83,7 +83,7 @@ class ClipboardManager {
       // 首先保存原始剪贴板内容
       const originalClipboard = clipboard.readText();
       this.safeLog(
-        "💾 已保存原始剪贴板内容",
+        "📾 已保存原始剪贴板内容",
         originalClipboard.substring(0, 50) + "..."
       );
 
@@ -94,6 +94,7 @@ class ClipboardManager {
         text.substring(0, 50) + "..."
       );
 
+      let result;
       if (process.platform === "darwin") {
         // 简化权限检查，直接尝试粘贴
         this.safeLog("🔍 检查粘贴操作的辅助功能权限");
@@ -101,20 +102,34 @@ class ClipboardManager {
 
         if (!hasPermissions) {
           this.safeLog("⚠️ 没有辅助功能权限 - 文本仅复制到剪贴板");
-          const errorMsg =
-            "需要辅助功能权限才能自动粘贴。文本已复制到剪贴板 - 请手动使用 Cmd+V 粘贴。";
-          throw new Error(errorMsg);
+          return {
+            success: true,
+            method: 'clipboard',
+            message: '需要辅助功能权限才能自动粘贴。文本已复制到剪贴板 - 请手动使用 Cmd+V 粘贴。',
+            requiresManualPaste: true
+          };
         }
 
         this.safeLog("✅ 权限已授予，尝试粘贴");
-        return await this.pasteMacOS(originalClipboard);
+        result = await this.pasteMacOS(originalClipboard);
       } else if (process.platform === "win32") {
-        return await this.pasteWindows(originalClipboard);
+        result = await this.pasteWindows(originalClipboard);
       } else {
-        return await this.pasteLinux(originalClipboard);
+        result = await this.pasteLinux(originalClipboard);
       }
+
+      // 返回结果（可能包含requiresManualPaste标志）
+      return result || { success: true, method: 'auto' };
     } catch (error) {
-      throw error;
+      // 即使出错，文本也已在剪贴板中
+      this.safeLog("❌ 粘贴过程出错:", error.message);
+      return {
+        success: true,
+        method: 'clipboard',
+        message: '文本已复制到剪贴板，请手动粘贴',
+        requiresManualPaste: true,
+        error: error.message
+      };
     }
   }
 
@@ -177,34 +192,57 @@ class ClipboardManager {
 
   async pasteWindows(originalClipboard) {
     return new Promise((resolve, reject) => {
-      const pasteProcess = spawn("powershell", [
-        "-Command",
-        'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait("^v")',
-      ]);
+      // 添加延迟确保剪贴板已更新
+      setTimeout(() => {
+        const pasteProcess = spawn("powershell", [
+          "-Command",
+          'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait("^v")',
+        ]);
 
-      pasteProcess.on("close", (code) => {
-        if (code === 0) {
-          // 文本粘贴成功
-          setTimeout(() => {
-            clipboard.writeText(originalClipboard);
-          }, 100);
-          resolve();
-        } else {
-          reject(
-            new Error(
-              `Windows 粘贴失败，代码 ${code}。文本已复制到剪贴板。`
-            )
-          );
-        }
-      });
+        let stderr = '';
+        
+        pasteProcess.stderr.on('data', (data) => {
+          stderr += data.toString();
+        });
 
-      pasteProcess.on("error", (error) => {
-        reject(
-          new Error(
-            `Windows 粘贴失败: ${error.message}。文本已复制到剪贴板。`
-          )
-        );
-      });
+        pasteProcess.on("close", (code) => {
+          if (code === 0) {
+            // 文本粘贴成功
+            setTimeout(() => {
+              clipboard.writeText(originalClipboard);
+              this.safeLog("✅ Windows粘贴成功，已恢复原始剪贴板");
+            }, 100);
+            resolve({ success: true, method: 'sendkeys' });
+          } else {
+            // SendKeys失败，但文本已在剪贴板，提示用户手动粘贴
+            this.safeLog(`⚠️ SendKeys失败（代码 ${code}），文本已在剪贴板`);
+            if (stderr) {
+              this.safeLog(`错误信息: ${stderr}`);
+            }
+            
+            // 不恢复原始剪贴板，让用户可以手动粘贴
+            resolve({ 
+              success: true, 
+              method: 'clipboard', 
+              message: '文本已复制到剪贴板，请按 Ctrl+V 粘贴',
+              requiresManualPaste: true
+            });
+          }
+        });
+
+        pasteProcess.on("error", (error) => {
+          // 进程启动失败，但文本已在剪贴板
+          this.safeLog(`⚠️ PowerShell启动失败: ${error.message}`);
+          
+          // 不恢复原始剪贴板，让用户可以手动粘贴
+          resolve({ 
+            success: true, 
+            method: 'clipboard', 
+            message: '文本已复制到剪贴板，请按 Ctrl+V 粘贴',
+            requiresManualPaste: true
+          });
+        });
+      }, 50); // 50ms延迟确保剪贴板更新
     });
   }
 

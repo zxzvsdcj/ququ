@@ -7,6 +7,7 @@ class WindowManager {
     this.controlPanelWindow = null;
     this.historyWindow = null;
     this.settingsWindow = null;
+    this.floatBallWindow = null;
   }
 
   async createMainWindow(showWindow = true) {
@@ -226,6 +227,106 @@ class WindowManager {
     }
   }
 
+  async createFloatBallWindow() {
+    if (this.floatBallWindow) {
+      this.floatBallWindow.show();
+      this.floatBallWindow.focus();
+      return this.floatBallWindow;
+    }
+
+    this.floatBallWindow = new BrowserWindow({
+      width: 80,
+      height: 80,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      resizable: false,
+      skipTaskbar: true,
+      movable: true,
+      show: true,
+      hasShadow: false, // 移除窗口阴影，避免背景
+      title: '', // 移除窗口标题
+      titleBarStyle: 'customButtonsOnHover', // 隐藏标题栏
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, "..", "..", "preload.js"),
+      },
+    });
+
+    const isDev = process.env.NODE_ENV === "development";
+
+    if (isDev) {
+      await this.floatBallWindow.loadURL("http://localhost:5173/floatBall.html");
+    } else {
+      await this.floatBallWindow.loadFile(
+        path.join(__dirname, "..", "dist", "floatBall.html")
+      );
+    }
+
+    // 悬浮球窗口关闭时隐藏而不是销毁（但app退出时允许关闭）
+    this.floatBallWindow.on("close", (e) => {
+      // 检查是否是app退出导致的关闭
+      const { app } = require("electron");
+      if (!app.isQuitting) {
+        e.preventDefault();
+        this.floatBallWindow.hide();
+      }
+      // 如果app正在退出，允许窗口正常关闭
+    });
+
+    this.floatBallWindow.on("closed", () => {
+      this.floatBallWindow = null;
+    });
+
+    return this.floatBallWindow;
+  }
+
+  showFloatBallWindow() {
+    if (this.floatBallWindow) {
+      this.floatBallWindow.show();
+      this.floatBallWindow.focus();
+    } else {
+      this.createFloatBallWindow();
+    }
+  }
+
+  hideFloatBallWindow() {
+    if (this.floatBallWindow) {
+      this.floatBallWindow.hide();
+    }
+  }
+
+  closeFloatBallWindow() {
+    if (this.floatBallWindow) {
+      // 移除close事件监听，真正关闭窗口
+      this.floatBallWindow.removeAllListeners("close");
+      this.floatBallWindow.close();
+    }
+  }
+
+  // 切换UI模式
+  async switchUIMode(mode) {
+    if (mode === 'float') {
+      // 切换到悬浮球模式
+      if (this.mainWindow) {
+        this.mainWindow.hide();
+      }
+      await this.showFloatBallWindow();
+    } else {
+      // 切换到完整模式
+      if (this.floatBallWindow) {
+        this.floatBallWindow.hide();
+      }
+      if (this.mainWindow) {
+        this.mainWindow.show();
+        this.mainWindow.focus();
+      } else {
+        await this.createMainWindow(true);
+      }
+    }
+  }
+
   closeAllWindows() {
     if (this.mainWindow) {
       this.mainWindow.close();
@@ -238,6 +339,9 @@ class WindowManager {
     }
     if (this.settingsWindow) {
       this.settingsWindow.close();
+    }
+    if (this.floatBallWindow) {
+      this.floatBallWindow.close();
     }
   }
 }

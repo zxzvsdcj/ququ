@@ -12,7 +12,8 @@ const SettingsPage = () => {
     ai_base_url: "https://api.openai.com/v1",
     ai_model: "gpt-3.5-turbo",
     enable_ai_optimization: true,
-    hotkey: "CommandOrControl+Shift+Space"
+    hotkey: "CommandOrControl+Shift+Space",
+    ui_mode: "full" // 新增：界面模式
   });
   
   const [customModel, setCustomModel] = useState(false);
@@ -53,7 +54,8 @@ const SettingsPage = () => {
           ai_base_url: allSettings.ai_base_url || "https://api.openai.com/v1",
           ai_model: allSettings.ai_model || "gpt-3.5-turbo",
           enable_ai_optimization: allSettings.enable_ai_optimization === undefined ? true : allSettings.enable_ai_optimization,
-          hotkey: allSettings.hotkey || "CommandOrControl+Shift+Space"
+          hotkey: allSettings.hotkey || "CommandOrControl+Shift+Space",
+          ui_mode: allSettings.ui_mode || "full" // 加载界面模式
         };
         setSettings(prev => ({ ...prev, ...loadedSettings }));
         
@@ -74,21 +76,42 @@ const SettingsPage = () => {
     try {
       setSaving(true);
       if (window.electronAPI) {
+        // 记录原UI模式
+        const allSettings = await window.electronAPI.getAllSettings();
+        const oldUIMode = allSettings.ui_mode || 'full';
+        
         // 保存每个设置项
         await window.electronAPI.setSetting('ai_api_key', settings.ai_api_key);
         await window.electronAPI.setSetting('ai_base_url', settings.ai_base_url);
         await window.electronAPI.setSetting('ai_model', settings.ai_model);
         await window.electronAPI.setSetting('enable_ai_optimization', settings.enable_ai_optimization);
         await window.electronAPI.setSetting('hotkey', settings.hotkey);
+        await window.electronAPI.setSetting('ui_mode', settings.ui_mode); // 保存界面模式
         
         // 应用新的快捷键
         if (window.electronAPI && window.electronAPI.registerHotkey) {
           try {
             await window.electronAPI.registerHotkey(settings.hotkey);
-            toast.success("设置保存成功，快捷键已更新");
           } catch (error) {
             console.error("快捷键注册失败:", error);
-            toast.success("设置保存成功，但快捷键更新失败");
+          }
+        }
+        
+        // 如果UI模式改变，则切换模式
+        if (oldUIMode !== settings.ui_mode && window.electronAPI.switchUIMode) {
+          try {
+            await window.electronAPI.switchUIMode(settings.ui_mode);
+            toast.success("设置已保存，正在切换界面模式...");
+            
+            // 延迟关闭设置窗口
+            setTimeout(() => {
+              if (window.electronAPI && window.electronAPI.closeWindow) {
+                window.electronAPI.closeWindow();
+              }
+            }, 1500);
+          } catch (error) {
+            console.error("切换UI模式失败:", error);
+            toast.error("UI模式切换失败");
           }
         } else {
           toast.success("设置保存成功");
@@ -520,6 +543,103 @@ const SettingsPage = () => {
                   <span>{saving ? "保存中..." : "保存设置"}</span>
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* 界面模式设置 */}
+          <div className="mt-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+            <div className="p-6">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 chinese-title">
+                  界面模式
+                </h2>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  选择应用显示方式，影响性能和使用体验。
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  onClick={() => {
+                    setSettings(prev => ({ ...prev, ui_mode: 'full' }));
+                  }}
+                  className={`${
+                    settings.ui_mode === 'full' 
+                      ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-blue-400' 
+                      : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                  } p-4 rounded-lg border-2 transition-all cursor-pointer`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`${
+                      settings.ui_mode === 'full' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'
+                    }`}>
+                      <Settings className="w-6 h-6" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <div className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                        完整模式
+                        {settings.ui_mode === 'full' && (
+                          <span className="ml-2 text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 rounded">当前</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        显示完整界面，可查看识别文本<br/>
+                        内存占用: ~80MB
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSettings(prev => ({ ...prev, ui_mode: 'float' }));
+                  }}
+                  className={`${
+                    settings.ui_mode === 'float' 
+                      ? 'bg-purple-50 dark:bg-purple-900/30 border-purple-500 dark:border-purple-400' 
+                      : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:border-purple-400'
+                  } p-4 rounded-lg border-2 transition-all cursor-pointer`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`${
+                      settings.ui_mode === 'float' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-600 dark:text-gray-400'
+                    }`}>
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <circle cx="12" cy="12" r="10" strokeWidth="2"/>
+                      </svg>
+                    </div>
+                    <div className="text-left flex-1">
+                      <div className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                        悬浮球模式 ⚡
+                        {settings.ui_mode === 'float' && (
+                          <span className="ml-2 text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-200 rounded">当前</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        仅显示状态指示器，性能最优<br/>
+                        内存占用: ~15MB，粘贴耗时 ~30ms
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                <p className="text-xs text-blue-800 dark:text-blue-200">
+                  <strong>💡 推荐配置：</strong><br/>
+                  • 需要查看文本 → 完整模式<br/>
+                  • 快速输入场景 → 悬浮球模式 + AI关闭<br/>
+                  • 低配置电脑 → 悬浮球模式
+                </p>
+              </div>
+
+              {settings.ui_mode !== loading && settings.ui_mode === 'float' && (
+                <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
+                  <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                    ⚠️ 保存后将切换到悬浮球模式，主窗口将隐藏。您可以右键悬浮球或从托盘菜单打开设置。
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

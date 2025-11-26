@@ -76,16 +76,26 @@ class TrayManager {
     }
   }
 
-  updateContextMenu() {
+  updateContextMenu(windowManager = null) {
     if (!this.tray) return;
 
     const contextMenu = Menu.buildFromTemplate([
       {
         label: "显示主窗口",
         click: () => {
-          if (this.mainWindow) {
+          if (windowManager && windowManager.switchUIMode) {
+            windowManager.switchUIMode('full');
+          } else if (this.mainWindow) {
             this.mainWindow.show();
             this.mainWindow.focus();
+          }
+        }
+      },
+      {
+        label: "显示悬浮球",
+        click: () => {
+          if (windowManager && windowManager.switchUIMode) {
+            windowManager.switchUIMode('float');
           }
         }
       },
@@ -109,6 +119,8 @@ class TrayManager {
         click: () => {
           if (this.openSettingsCallback) {
             this.openSettingsCallback();
+          } else if (windowManager && windowManager.showSettingsWindow) {
+            windowManager.showSettingsWindow();
           }
         }
       },

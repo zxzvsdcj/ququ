@@ -238,13 +238,34 @@ async function startApp() {
     logger.warn("FunASR在启动时不可用，这不是关键问题", err);
   });
 
-  // 创建主窗口（启动时不显示，只在后台加载）
+  // 根据设置加载UI模式
+  let uiMode = 'full'; // 默认完整模式
   try {
-    logger.info('创建主窗口（后台模式）...');
-    await windowManager.createMainWindow(false); // false = 不显示窗口
-    logger.info('主窗口创建成功（已隐藏）');
+    uiMode = await databaseManager.getSetting('ui_mode', 'full');
+    logger.info(`用户UI模式设置: ${uiMode}`);
   } catch (error) {
-    logger.error("创建主窗口时出错:", error);
+    logger.warn('获取UI模式设置失败，使用默认值:', error);
+  }
+
+  if (uiMode === 'float') {
+    // 悬浮球模式：创建悬浮球窗口
+    try {
+      logger.info('创建悬浮球窗口...');
+      await windowManager.createFloatBallWindow();
+      logger.info('悬浮球窗口创建成功');
+    } catch (error) {
+      logger.error("创建悬浮球窗口失败，回退到完整模式:", error);
+      await windowManager.createMainWindow(false);
+    }
+  } else {
+    // 完整模式：创建主窗口（后台）
+    try {
+      logger.info('创建主窗口（后台模式）...');
+      await windowManager.createMainWindow(false); // false = 不显示窗口
+      logger.info('主窗口创建成功（已隐藏）');
+    } catch (error) {
+      logger.error("创建主窗口时出错:", error);
+    }
   }
 
   // 创建控制面板窗口
@@ -270,6 +291,7 @@ async function startApp() {
     windowManager.showSettingsWindow();
   };
   await trayManager.createTray();
+  trayManager.updateContextMenu(windowManager); // 传递windowManager以支持悬浮球切换
   logger.info('系统托盘设置完成');
 
   logger.info('应用启动完成');
@@ -278,6 +300,11 @@ async function startApp() {
 // 应用事件处理器
 app.whenReady().then(() => {
   startApp();
+});
+
+// 设置退出标志，让悬浮球窗口知道app正在退出
+app.on("before-quit", () => {
+  app.isQuitting = true;
 });
 
 app.on("window-all-closed", () => {
