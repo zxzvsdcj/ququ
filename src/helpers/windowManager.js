@@ -234,7 +234,8 @@ class WindowManager {
       return this.floatBallWindow;
     }
 
-    this.floatBallWindow = new BrowserWindow({
+    // Windows透明窗口配置
+    const windowConfig = {
       width: 80,
       height: 80,
       frame: false,
@@ -243,16 +244,30 @@ class WindowManager {
       resizable: false,
       skipTaskbar: true,
       movable: true,
-      show: true,
-      hasShadow: false, // 移除窗口阴影，避免背景
-      title: '', // 移除窗口标题
-      titleBarStyle: 'customButtonsOnHover', // 隐藏标题栏
+      show: false, // 先隐藏，等加载完成后再显示
+      hasShadow: false,
+      title: '',
+      // Windows特定：使用thickFrame: false移除边框
+      thickFrame: false,
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
         preload: path.join(__dirname, "..", "..", "preload.js"),
       },
-    });
+    };
+
+    // macOS特定配置
+    if (process.platform === 'darwin') {
+      windowConfig.titleBarStyle = 'customButtonsOnHover';
+      windowConfig.vibrancy = 'under-window';
+    }
+
+    this.floatBallWindow = new BrowserWindow(windowConfig);
+
+    // Windows上设置窗口为工具窗口类型，避免显示在任务栏
+    if (process.platform === 'win32') {
+      this.floatBallWindow.setSkipTaskbar(true);
+    }
 
     const isDev = process.env.NODE_ENV === "development";
 
@@ -263,6 +278,18 @@ class WindowManager {
         path.join(__dirname, "..", "dist", "floatBall.html")
       );
     }
+
+    // 加载完成后显示窗口
+    this.floatBallWindow.once('ready-to-show', () => {
+      this.floatBallWindow.show();
+    });
+
+    // 如果ready-to-show没触发，延迟显示
+    setTimeout(() => {
+      if (this.floatBallWindow && !this.floatBallWindow.isVisible()) {
+        this.floatBallWindow.show();
+      }
+    }, 500);
 
     // 悬浮球窗口关闭时隐藏而不是销毁（但app退出时允许关闭）
     this.floatBallWindow.on("close", (e) => {

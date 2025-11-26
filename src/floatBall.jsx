@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useRecording } from './hooks/useRecording';
 import { useModelStatus } from './hooks/useModelStatus';
@@ -11,6 +11,14 @@ const FloatBall = () => {
   const { isRecording, isProcessing, isOptimizing, startRecording, stopRecording } = useRecording();
   const modelStatus = useModelStatus();
   const { syncRecordingState } = useHotkey();
+  
+  // 使用ref存储最新状态，避免闭包问题
+  const stateRef = useRef({ isRecording, isProcessing, isOptimizing, modelStatus });
+  
+  // 更新ref中的状态
+  useEffect(() => {
+    stateRef.current = { isRecording, isProcessing, isOptimizing, modelStatus };
+  }, [isRecording, isProcessing, isOptimizing, modelStatus]);
 
   // 更新状态
   useEffect(() => {
@@ -69,7 +77,7 @@ const FloatBall = () => {
     }
   }, []);
 
-  // 注册热键（F2双击 + 自定义快捷键）和录音状态同步
+  // 注册热键（F2双击 + 自定义快捷键）- 只注册一次
   useEffect(() => {
     // 注册所有热键
     const registerHotkeys = async () => {
@@ -99,11 +107,13 @@ const FloatBall = () => {
 
     registerHotkeys();
 
-    // 监听F2双击事件
+    // 监听F2双击事件 - 使用ref获取最新状态
     const handleF2DoubleClick = (event, data) => {
-      console.log('🎹 悬浮球：收到F2双击事件', data);
+      const { isRecording, isProcessing, isOptimizing, modelStatus } = stateRef.current;
+      console.log('🎹 悬浮球：收到F2双击事件', data, '当前状态:', { isRecording, isProcessing, isOptimizing });
+      
       if (data.action === 'start') {
-        if (modelStatus.isReady && !isProcessing && !isOptimizing) {
+        if (modelStatus.isReady && !isProcessing && !isOptimizing && !isRecording) {
           startRecording();
         }
       } else if (data.action === 'stop') {
@@ -113,32 +123,45 @@ const FloatBall = () => {
       }
     };
 
-    // 监听自定义快捷键事件
+    // 监听自定义快捷键事件 - 使用ref获取最新状态
     const handleHotkeyTriggered = () => {
-      console.log('🎹 悬浮球：收到自定义快捷键事件');
+      const { isRecording, isProcessing, isOptimizing, modelStatus } = stateRef.current;
+      console.log('🎹 悬浮球：收到自定义快捷键事件，当前状态:', { isRecording, isProcessing, isOptimizing });
+      
       // 切换录音状态
       if (isRecording) {
+        console.log('🎹 悬浮球：停止录音');
         stopRecording();
       } else if (modelStatus.isReady && !isProcessing && !isOptimizing) {
+        console.log('🎹 悬浮球：开始录音');
         startRecording();
+      } else {
+        console.log('🎹 悬浮球：无法切换状态，模型未就绪或正在处理中');
       }
     };
 
+    // 注册监听器
+    let removeF2Listener = null;
+    let removeHotkeyListener = null;
+    
     if (window.electronAPI && window.electronAPI.onF2DoubleClick) {
-      window.electronAPI.onF2DoubleClick(handleF2DoubleClick);
+      removeF2Listener = window.electronAPI.onF2DoubleClick(handleF2DoubleClick);
     }
 
     if (window.electronAPI && window.electronAPI.onHotkeyTriggered) {
-      window.electronAPI.onHotkeyTriggered(handleHotkeyTriggered);
+      removeHotkeyListener = window.electronAPI.onHotkeyTriggered(handleHotkeyTriggered);
     }
 
     return () => {
       // 清理监听器
-      if (window.electronAPI && window.electronAPI.removeF2DoubleClickListener) {
-        window.electronAPI.removeF2DoubleClickListener();
+      if (removeF2Listener) {
+        removeF2Listener();
+      }
+      if (removeHotkeyListener) {
+        removeHotkeyListener();
       }
     };
-  }, [modelStatus.isReady, isRecording, isProcessing, isOptimizing, startRecording, stopRecording]);
+  }, [startRecording, stopRecording]); // 只依赖函数引用，不依赖状态
 
   // 同步录音状态到主进程
   useEffect(() => {
