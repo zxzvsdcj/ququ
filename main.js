@@ -2,6 +2,14 @@ const { app, globalShortcut, BrowserWindow, ipcMain, Menu } = require("electron"
 const path = require("path");
 const { spawn } = require("child_process");
 
+// Windows透明窗口需要禁用GPU加速
+// 这是解决Windows上transparent窗口显示白色背景的关键
+if (process.platform === 'win32') {
+  app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('disable-software-rasterizer');
+}
+
 // 导入日志管理器
 const LogManager = require("./src/helpers/logManager");
 

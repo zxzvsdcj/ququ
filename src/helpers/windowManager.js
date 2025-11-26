@@ -234,10 +234,17 @@ class WindowManager {
       return this.floatBallWindow;
     }
 
+    // 获取屏幕信息
+    const { screen } = require('electron');
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+
     // 透明窗口配置
-    const windowConfig = {
+    this.floatBallWindow = new BrowserWindow({
       width: 80,
       height: 80,
+      x: screenWidth - 150,  // 屏幕右侧
+      y: screenHeight / 2 - 40,  // 屏幕中间
       frame: false,
       transparent: true,
       alwaysOnTop: true,
@@ -246,32 +253,30 @@ class WindowManager {
       movable: true,
       show: false,
       hasShadow: false,
-      title: '',
-      thickFrame: false,
-      backgroundColor: '#00000000',
-      // 关键：设置窗口类型
-      type: 'toolbar', // Windows上使用toolbar类型可以避免某些边框问题
+      focusable: true,
+      // Windows关键配置
+      ...(process.platform === 'win32' && {
+        // 不使用任何可能导致标题栏的选项
+      }),
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
         preload: path.join(__dirname, "..", "..", "preload.js"),
         backgroundThrottling: false,
       },
-    };
-
-    // macOS特定配置
-    if (process.platform === 'darwin') {
-      windowConfig.titleBarStyle = 'customButtonsOnHover';
-      windowConfig.vibrancy = 'under-window';
-      delete windowConfig.type; // macOS不需要type
-    }
-
-    this.floatBallWindow = new BrowserWindow(windowConfig);
+    });
 
     // Windows上额外设置
     if (process.platform === 'win32') {
       this.floatBallWindow.setSkipTaskbar(true);
-      this.floatBallWindow.setBackgroundColor('#00000000');
+      // 尝试移除窗口菜单
+      this.floatBallWindow.setMenu(null);
+      this.floatBallWindow.setMenuBarVisibility(false);
+    }
+
+    // macOS配置
+    if (process.platform === 'darwin') {
+      this.floatBallWindow.setWindowButtonVisibility(false);
     }
 
     const isDev = process.env.NODE_ENV === "development";
@@ -284,30 +289,41 @@ class WindowManager {
       );
     }
 
-    // 加载完成后显示窗口并注入CSS确保透明
-    this.floatBallWindow.once('ready-to-show', () => {
-      // 注入CSS确保背景透明
-      this.floatBallWindow.webContents.insertCSS(`
-        html, body { 
-          background: transparent !important; 
-          background-color: transparent !important;
-        }
+    // 加载完成后处理
+    this.floatBallWindow.webContents.on('did-finish-load', () => {
+      // 注入JavaScript清理和透明化
+      this.floatBallWindow.webContents.executeJavaScript(`
+        (function() {
+          // 移除Vite注入的元素
+          document.querySelectorAll('vite-error-overlay').forEach(el => el.remove());
+          
+          // 确保透明
+          document.documentElement.style.background = 'transparent';
+          document.body.style.background = 'transparent';
+          
+          // 检查并移除任何非预期的白色元素
+          const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === 1 && node.tagName === 'VITE-ERROR-OVERLAY') {
+                  node.remove();
+                }
+              });
+            });
+          });
+          observer.observe(document.body, { childList: true, subtree: true });
+        })();
       `);
+      
       this.floatBallWindow.show();
     });
 
-    // 如果ready-to-show没触发，延迟显示
+    // 备用显示
     setTimeout(() => {
       if (this.floatBallWindow && !this.floatBallWindow.isVisible()) {
-        this.floatBallWindow.webContents.insertCSS(`
-          html, body { 
-            background: transparent !important; 
-            background-color: transparent !important;
-          }
-        `);
         this.floatBallWindow.show();
       }
-    }, 500);
+    }, 1000);
 
     // 悬浮球窗口关闭时隐藏而不是销毁
     this.floatBallWindow.on("close", (e) => {

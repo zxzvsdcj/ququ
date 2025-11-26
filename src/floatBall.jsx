@@ -266,38 +266,95 @@ const FloatBall = () => {
     };
   }, [syncRecordingState]);
 
+  // 获取背景渐变色
+  const getBackground = () => {
+    switch (status) {
+      case 'recording':
+        return 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
+      case 'processing':
+        return 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)';
+      case 'error':
+        return 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)';
+      default: // idle
+        return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    }
+  };
+
+  // 获取动画样式
+  const getAnimation = () => {
+    switch (status) {
+      case 'recording':
+        return 'pulse 1.5s ease-in-out infinite';
+      case 'processing':
+        return 'spin 2s linear infinite';
+      default:
+        return 'none';
+    }
+  };
+
   // 渲染图标
   const renderIcon = () => {
     switch (status) {
       case 'recording':
+        // 声波动画
         return (
-          <div className="wave-container">
-            <div className="wave-bar"></div>
-            <div className="wave-bar"></div>
-            <div className="wave-bar"></div>
-            <div className="wave-bar"></div>
+          <div style={{
+            display: 'flex',
+            gap: '3px',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                style={{
+                  width: '4px',
+                  height: '16px',
+                  background: 'white',
+                  borderRadius: '2px',
+                  animation: `wave 1.2s ease-in-out infinite`,
+                  animationDelay: `${i * 0.1}s`
+                }}
+              />
+            ))}
           </div>
         );
       
       case 'processing':
+        // 加载点动画
         return (
-          <div className="dots-container">
-            <div className="dot"></div>
-            <div className="dot"></div>
-            <div className="dot"></div>
+          <div style={{
+            display: 'flex',
+            gap: '5px',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  background: 'white',
+                  borderRadius: '50%',
+                  animation: `bounce 1.4s ease-in-out infinite`,
+                  animationDelay: `${i * 0.2}s`
+                }}
+              />
+            ))}
           </div>
         );
       
       case 'error':
         return (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="white"/>
           </svg>
         );
       
       default: // idle
         return (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 1C10.34 1 9 2.34 9 4V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V4C15 2.34 13.66 1 12 1Z" fill="white"/>
             <path d="M19 10V12C19 15.866 15.866 19 12 19C8.13401 19 5 15.866 5 12V10H7V12C7 14.7614 9.23858 17 12 17C14.7614 17 17 14.7614 17 12V10H19Z" fill="white"/>
             <path d="M11 20V23H13V20H11Z" fill="white"/>
@@ -307,35 +364,118 @@ const FloatBall = () => {
   };
 
   return (
-    <div
-      id="float-ball"
-      className={status}
-      onClick={handleClick}
-      onMouseDown={handleMouseDown}
-      onContextMenu={handleContextMenu}
-      title={
-        status === 'error' 
-          ? errorMessage 
-          : status === 'recording' 
-          ? '录音中 (按F2两次停止)' 
-          : status === 'processing'
-          ? '处理中...'
-          : '点击或按F2两次开始录音'
-      }
-    >
-      <div className="icon">
-        {renderIcon()}
+    <>
+      {/* 内联CSS动画定义 */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); box-shadow: 0 4px 20px rgba(240, 147, 251, 0.4); }
+          50% { transform: scale(1.08); box-shadow: 0 6px 30px rgba(240, 147, 251, 0.6); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes wave {
+          0%, 100% { transform: scaleY(0.5); }
+          50% { transform: scaleY(1.5); }
+        }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); opacity: 1; }
+          50% { transform: translateY(-8px); opacity: 0.7; }
+        }
+        @keyframes glow {
+          0%, 100% { box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4); }
+          50% { box-shadow: 0 4px 30px rgba(102, 126, 234, 0.6); }
+        }
+        .float-ball-container:hover {
+          transform: scale(1.1) !important;
+        }
+      `}</style>
+      
+      <div
+        className="float-ball-container"
+        onClick={handleClick}
+        onMouseDown={handleMouseDown}
+        onContextMenu={handleContextMenu}
+        title={
+          status === 'error' 
+            ? errorMessage 
+            : status === 'recording' 
+            ? '录音中 (点击或按快捷键停止)' 
+            : status === 'processing'
+            ? '处理中...'
+            : '点击或按快捷键开始录音'
+        }
+        style={{
+          width: '60px',
+          height: '60px',
+          borderRadius: '50%',
+          background: getBackground(),
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: isDragging ? 'grabbing' : 'pointer',
+          transition: 'transform 0.2s ease, box-shadow 0.3s ease',
+          animation: status === 'idle' ? 'glow 3s ease-in-out infinite' : getAnimation(),
+          boxShadow: status === 'recording' 
+            ? '0 6px 25px rgba(240, 147, 251, 0.5)' 
+            : status === 'processing'
+            ? '0 6px 25px rgba(79, 172, 254, 0.5)'
+            : status === 'error'
+            ? '0 6px 25px rgba(255, 107, 107, 0.5)'
+            : '0 4px 20px rgba(102, 126, 234, 0.4)',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+        }}
+      >
+        <div style={{
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none'
+        }}>
+          {renderIcon()}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
 // 挂载React应用
-// 创建一个新的根元素，因为HTML中的#float-ball是静态的
-const container = document.createElement('div');
-container.id = 'react-root';
-document.body.innerHTML = ''; // 清空body
-document.body.appendChild(container);
-const root = createRoot(container);
-root.render(<FloatBall />);
+function mountApp() {
+  // 清理可能的Vite注入元素
+  const viteElements = document.querySelectorAll('vite-error-overlay, [data-vite-dev-id]');
+  viteElements.forEach(el => el.remove());
+  
+  // 清空body中除了script之外的所有元素
+  Array.from(document.body.children).forEach(child => {
+    if (child.tagName !== 'SCRIPT') {
+      child.remove();
+    }
+  });
+  
+  // 创建React根容器
+  const container = document.createElement('div');
+  container.id = 'react-root';
+  container.style.cssText = `
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+  `;
+  document.body.appendChild(container);
+  
+  const root = createRoot(container);
+  root.render(<FloatBall />);
+}
+
+// 确保DOM加载完成后挂载
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', mountApp);
+} else {
+  mountApp();
+}
 
