@@ -66,23 +66,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   registerHotkey: (hotkey) => ipcRenderer.invoke("register-hotkey", hotkey),
   unregisterHotkey: (hotkey) => ipcRenderer.invoke("unregister-hotkey", hotkey),
   getCurrentHotkey: () => ipcRenderer.invoke("get-current-hotkey"),
-  
-  // F2热键管理
-  registerF2Hotkey: () => ipcRenderer.invoke("register-f2-hotkey"),
-  unregisterF2Hotkey: () => ipcRenderer.invoke("unregister-f2-hotkey"),
   setRecordingState: (isRecording) => ipcRenderer.invoke("set-recording-state", isRecording),
   getRecordingState: () => ipcRenderer.invoke("get-recording-state"),
-  
-  // F2双击事件监听
-  onF2DoubleClick: (callback) => {
-    ipcRenderer.on("f2-double-click", callback);
-    return () => ipcRenderer.removeListener("f2-double-click", callback);
-  },
-  
-  // 移除F2双击监听器
-  removeF2DoubleClickListener: () => {
-    ipcRenderer.removeAllListeners("f2-double-click");
-  },
   
   // 悬浮球右键菜单
   showFloatBallContextMenu: () => ipcRenderer.invoke("show-float-ball-context-menu"),

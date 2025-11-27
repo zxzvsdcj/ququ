@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 /**
  * 热键管理Hook
- * 处理全局快捷键功能，包括F2双击功能
+ * 处理全局快捷键功能（仅自定义快捷键）
  */
 export const useHotkey = () => {
   const [hotkey, setHotkey] = useState('CommandOrControl+Shift+Space');
@@ -37,9 +37,7 @@ export const useHotkey = () => {
     getCurrentHotkey();
   }, []);
 
-  // 移除F2双击相关的复杂逻辑，专注于传统热键
-
-  // 注册传统热键 - 添加防重复注册机制
+  // 注册热键 - 添加防重复注册机制
   const registerHotkey = async (newHotkey) => {
     try {
       // 防重复注册：如果已经注册了相同的热键，直接返回成功
@@ -66,7 +64,7 @@ export const useHotkey = () => {
     }
   };
 
-  // 注销传统热键
+  // 注销热键
   const unregisterHotkey = async (hotkeyToUnregister) => {
     try {
       if (window.electronAPI) {
@@ -102,7 +100,6 @@ export const useHotkey = () => {
       .replace('Shift', '⇧')
       .replace('Alt', '⌥')
       .replace('Space', '空格')
-      .replace('F2', 'F2')
       .replace('F1', 'F1')
       .replace('F3', 'F3')
       .replace('F4', 'F4')

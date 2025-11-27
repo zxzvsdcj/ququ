@@ -480,7 +480,7 @@ export default function App() {
     }
   }, [modelStatus, isRecording, isRecordingProcessing, startRecording, stopRecording]);
 
-  // 使用热键Hook，不再使用F2双击功能
+  // 使用热键Hook（仅自定义快捷键）
   const { hotkey, syncRecordingState, registerHotkey } = useHotkey();
 
   // 注册传统热键监听 - 只在主窗口注册，避免重复

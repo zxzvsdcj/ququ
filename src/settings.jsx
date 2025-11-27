@@ -676,9 +676,12 @@ const SettingsPage = () => {
                   <p className="text-xs text-blue-800 dark:text-blue-200">
                     <strong>常用快捷键示例：</strong><br/>
                     • CommandOrControl+Shift+Space (默认)<br/>
-                    • F2 (简单易记)<br/>
+                    • F3 (简单易记)<br/>
                     • CommandOrControl+Alt+R<br/>
-                    • Shift+F2
+                    • Shift+F3
+                  </p>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-2">
+                    <strong>注意：</strong>避免使用F2，因为它是系统的重命名快捷键
                   </p>
                 </div>
 

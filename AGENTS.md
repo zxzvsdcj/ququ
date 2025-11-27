@@ -33,7 +33,7 @@
 
 ### IPC架构(非标准)
 - 所有Electron IPC处理器集中在`src/helpers/ipcHandlers.js`
-- F2热键使用自定义双击检测，带发送者跟踪以防止内存泄漏
+- 自定义快捷键通过`hotkeyManager.js`管理，带防抖机制
 - 录音状态通过`hotkeyManager.js`在主进程和渲染进程间同步
 - 新增模型管理IPC接口：`check-model-files`, `download-models`, `get-download-progress`
 - 模型下载进度通过`model-download-progress`事件实时推送

@@ -140,18 +140,11 @@ const FloatBall = () => {
     }
   }, []);
 
-  // 注册热键（F2双击 + 自定义快捷键）- 只注册一次
+  // 注册自定义快捷键 - 只注册一次
   useEffect(() => {
-    // 注册所有热键
     const registerHotkeys = async () => {
       try {
-        // 1. 注册F2双击热键
-        if (window.electronAPI && window.electronAPI.registerF2Hotkey) {
-          await window.electronAPI.registerF2Hotkey();
-          console.log('✅ 悬浮球：F2双击热键已注册');
-        }
-
-        // 2. 注册自定义快捷键（从设置中读取）
+        // 注册自定义快捷键（从设置中读取）
         if (window.electronAPI && window.electronAPI.getSetting && window.electronAPI.registerHotkey) {
           const customHotkey = await window.electronAPI.getSetting('hotkey', 'CommandOrControl+Shift+Space');
           if (customHotkey) {
@@ -169,22 +162,6 @@ const FloatBall = () => {
     };
 
     registerHotkeys();
-
-    // 监听F2双击事件 - 使用ref获取最新状态
-    const handleF2DoubleClick = (event, data) => {
-      const { isRecording, isProcessing, isOptimizing, modelStatus } = stateRef.current;
-      console.log('🎹 悬浮球：收到F2双击事件', data, '当前状态:', { isRecording, isProcessing, isOptimizing });
-      
-      if (data.action === 'start') {
-        if (modelStatus.isReady && !isProcessing && !isOptimizing && !isRecording) {
-          startRecording();
-        }
-      } else if (data.action === 'stop') {
-        if (isRecording) {
-          stopRecording();
-        }
-      }
-    };
 
     // 监听自定义快捷键事件 - 使用ref获取最新状态
     const handleHotkeyTriggered = () => {
@@ -204,12 +181,7 @@ const FloatBall = () => {
     };
 
     // 注册监听器
-    let removeF2Listener = null;
     let removeHotkeyListener = null;
-    
-    if (window.electronAPI && window.electronAPI.onF2DoubleClick) {
-      removeF2Listener = window.electronAPI.onF2DoubleClick(handleF2DoubleClick);
-    }
 
     if (window.electronAPI && window.electronAPI.onHotkeyTriggered) {
       removeHotkeyListener = window.electronAPI.onHotkeyTriggered(handleHotkeyTriggered);
@@ -217,9 +189,6 @@ const FloatBall = () => {
 
     return () => {
       // 清理监听器
-      if (removeF2Listener) {
-        removeF2Listener();
-      }
       if (removeHotkeyListener) {
         removeHotkeyListener();
       }
