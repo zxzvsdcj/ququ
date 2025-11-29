@@ -493,11 +493,11 @@ class WindowManager {
       alwaysOnTop: true,
       resizable: false,
       skipTaskbar: true,
-      focusable: true, // 必须可聚焦才能接收点击
+      focusable: true,
       hasShadow: false,
       webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false,
+        nodeIntegration: false,
+        contextIsolation: true,
       },
     });
     
@@ -519,6 +519,7 @@ class WindowManager {
               overflow: hidden;
               width: 100%;
               height: 100%;
+              cursor: pointer;
             }
             .indicator {
               width: ${isVertical ? '8px' : '100%'};
@@ -541,25 +542,10 @@ class WindowManager {
               0%, 100% { opacity: 0.7; }
               50% { opacity: 1; }
             }
-            .click-area {
-              width: 100%;
-              height: 100%;
-              position: absolute;
-              top: 0;
-              left: 0;
-              cursor: pointer;
-            }
           </style>
         </head>
         <body>
-          <div class="click-area" id="clickArea"></div>
           <div class="indicator"></div>
-          <script>
-            document.getElementById('clickArea').addEventListener('click', function() {
-              const { ipcRenderer } = require('electron');
-              ipcRenderer.send('edge-indicator-clicked');
-            });
-          </script>
         </body>
       </html>
     `;
@@ -567,19 +553,27 @@ class WindowManager {
     indicatorWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(indicatorHtml)}`);
     indicatorWindow.show();
     
-    // 保存指示器窗口引用
+    // 保存指示器窗口引用和this引用
     this.floatBallEdgeState.indicatorWindow = indicatorWindow;
+    const self = this;
     
-    // 监听指示器的IPC事件
-    const { ipcMain } = require('electron');
+    // 使用 webContents 的 input-event 监听点击
+    indicatorWindow.webContents.on('before-input-event', (event, input) => {
+      if (input.type === 'mouseDown') {
+        console.log('边缘指示器被点击，显示悬浮球');
+        self.showFloatBallFromEdge();
+      }
+    });
     
-    // 移除之前的监听器（如果有）
-    ipcMain.removeAllListeners('edge-indicator-clicked');
-    
-    // 点击指示器 - 显示悬浮球
-    ipcMain.on('edge-indicator-clicked', () => {
-      console.log('边缘指示器被点击，显示悬浮球');
-      this.showFloatBallFromEdge();
+    // 备用方案：监听窗口获得焦点时的点击
+    indicatorWindow.on('focus', () => {
+      // 延迟一点执行，确保是真正的点击
+      setTimeout(() => {
+        if (indicatorWindow && !indicatorWindow.isDestroyed() && indicatorWindow.isFocused()) {
+          console.log('边缘指示器获得焦点，显示悬浮球');
+          self.showFloatBallFromEdge();
+        }
+      }, 50);
     });
     
     // 监听加载完成
@@ -592,9 +586,6 @@ class WindowManager {
       if (this.floatBallEdgeState) {
         this.floatBallEdgeState.indicatorWindow = null;
       }
-      // 清理IPC监听器
-      const { ipcMain } = require('electron');
-      ipcMain.removeAllListeners('edge-indicator-clicked');
     });
   }
 
