@@ -559,10 +559,6 @@ class WindowManager {
               const { ipcRenderer } = require('electron');
               ipcRenderer.send('edge-indicator-clicked');
             });
-            document.getElementById('clickArea').addEventListener('mouseenter', function() {
-              const { ipcRenderer } = require('electron');
-              ipcRenderer.send('edge-indicator-hover');
-            });
           </script>
         </body>
       </html>
@@ -579,17 +575,10 @@ class WindowManager {
     
     // 移除之前的监听器（如果有）
     ipcMain.removeAllListeners('edge-indicator-clicked');
-    ipcMain.removeAllListeners('edge-indicator-hover');
     
     // 点击指示器 - 显示悬浮球
     ipcMain.on('edge-indicator-clicked', () => {
       console.log('边缘指示器被点击，显示悬浮球');
-      this.showFloatBallFromEdge();
-    });
-    
-    // 鼠标进入指示器 - 也显示悬浮球
-    ipcMain.on('edge-indicator-hover', () => {
-      console.log('鼠标进入边缘指示器，显示悬浮球');
       this.showFloatBallFromEdge();
     });
     
@@ -606,7 +595,6 @@ class WindowManager {
       // 清理IPC监听器
       const { ipcMain } = require('electron');
       ipcMain.removeAllListeners('edge-indicator-clicked');
-      ipcMain.removeAllListeners('edge-indicator-hover');
     });
   }
 
