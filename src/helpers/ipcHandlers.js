@@ -425,19 +425,34 @@ class IPCHandlers {
           }
           
           const success = this.hotkeyManager.registerHotkey(hotkey, () => {
-            // 发送热键触发事件到所有活动窗口（主窗口和悬浮球）
+            // 只发送热键触发事件到当前可见的窗口（避免重复触发）
             this.logger.info(`热键 ${hotkey} 被触发`);
             
-            // 发送到主窗口
-            if (this.windowManager && this.windowManager.mainWindow && !this.windowManager.mainWindow.isDestroyed()) {
-              this.windowManager.mainWindow.webContents.send("hotkey-triggered", { hotkey });
-              this.logger.info(`热键事件已发送到主窗口`);
-            }
+            // 检查悬浮球窗口是否可见
+            const floatBallVisible = this.windowManager && 
+              this.windowManager.floatBallWindow && 
+              !this.windowManager.floatBallWindow.isDestroyed() && 
+              this.windowManager.floatBallWindow.isVisible();
             
-            // 发送到悬浮球窗口
-            if (this.windowManager && this.windowManager.floatBallWindow && !this.windowManager.floatBallWindow.isDestroyed()) {
+            // 检查主窗口是否可见
+            const mainWindowVisible = this.windowManager && 
+              this.windowManager.mainWindow && 
+              !this.windowManager.mainWindow.isDestroyed() && 
+              this.windowManager.mainWindow.isVisible();
+            
+            // 优先发送到悬浮球（如果可见），否则发送到主窗口
+            if (floatBallVisible) {
               this.windowManager.floatBallWindow.webContents.send("hotkey-triggered", { hotkey });
               this.logger.info(`热键事件已发送到悬浮球窗口`);
+            } else if (mainWindowVisible) {
+              this.windowManager.mainWindow.webContents.send("hotkey-triggered", { hotkey });
+              this.logger.info(`热键事件已发送到主窗口`);
+            } else {
+              // 如果都不可见，发送到主窗口（可能是后台运行）
+              if (this.windowManager && this.windowManager.mainWindow && !this.windowManager.mainWindow.isDestroyed()) {
+                this.windowManager.mainWindow.webContents.send("hotkey-triggered", { hotkey });
+                this.logger.info(`热键事件已发送到主窗口（后台）`);
+              }
             }
           });
           
