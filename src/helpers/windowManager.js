@@ -559,22 +559,33 @@ class WindowManager {
     
     // 标记是否已经准备好接收点击（防止创建时立即触发）
     let readyForClick = false;
-    setTimeout(() => {
-      readyForClick = true;
-      console.log('边缘指示器已准备好接收点击');
-    }, 500); // 500ms后才开始响应点击
     
-    // 使用 webContents 的 input-event 监听点击
-    indicatorWindow.webContents.on('before-input-event', (event, input) => {
-      if (input.type === 'mouseDown' && readyForClick) {
-        console.log('边缘指示器被点击，显示悬浮球');
-        self.showFloatBallFromEdge();
-      }
-    });
-    
-    // 监听加载完成
+    // 监听加载完成后注入点击处理
     indicatorWindow.webContents.on('did-finish-load', () => {
       console.log('边缘指示器加载完成');
+      
+      // 500ms后开始监听点击
+      setTimeout(() => {
+        readyForClick = true;
+        console.log('边缘指示器已准备好接收点击');
+        
+        // 注入点击事件处理
+        indicatorWindow.webContents.executeJavaScript(`
+          document.body.addEventListener('click', function(e) {
+            console.log('指示器被点击');
+            // 通过修改 document.title 来通知主进程
+            document.title = 'clicked-' + Date.now();
+          });
+        `);
+      }, 500);
+    });
+    
+    // 监听 title 变化来检测点击
+    indicatorWindow.on('page-title-updated', (event, title) => {
+      if (title.startsWith('clicked-') && readyForClick) {
+        console.log('检测到指示器点击，显示悬浮球');
+        self.showFloatBallFromEdge();
+      }
     });
     
     // 监听指示器关闭
