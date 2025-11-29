@@ -557,23 +557,19 @@ class WindowManager {
     this.floatBallEdgeState.indicatorWindow = indicatorWindow;
     const self = this;
     
+    // 标记是否已经准备好接收点击（防止创建时立即触发）
+    let readyForClick = false;
+    setTimeout(() => {
+      readyForClick = true;
+      console.log('边缘指示器已准备好接收点击');
+    }, 500); // 500ms后才开始响应点击
+    
     // 使用 webContents 的 input-event 监听点击
     indicatorWindow.webContents.on('before-input-event', (event, input) => {
-      if (input.type === 'mouseDown') {
+      if (input.type === 'mouseDown' && readyForClick) {
         console.log('边缘指示器被点击，显示悬浮球');
         self.showFloatBallFromEdge();
       }
-    });
-    
-    // 备用方案：监听窗口获得焦点时的点击
-    indicatorWindow.on('focus', () => {
-      // 延迟一点执行，确保是真正的点击
-      setTimeout(() => {
-        if (indicatorWindow && !indicatorWindow.isDestroyed() && indicatorWindow.isFocused()) {
-          console.log('边缘指示器获得焦点，显示悬浮球');
-          self.showFloatBallFromEdge();
-        }
-      }, 50);
     });
     
     // 监听加载完成
