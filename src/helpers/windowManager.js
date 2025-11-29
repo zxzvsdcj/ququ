@@ -463,53 +463,107 @@ class WindowManager {
         break;
     }
     
-    // 创建指示器窗口
+    // 创建指示器窗口 - 使用更大的尺寸便于点击
+    const clickAreaSize = 20; // 点击区域大小
+    let finalWidth = edge === 'left' || edge === 'right' ? clickAreaSize : 80;
+    let finalHeight = edge === 'top' || edge === 'bottom' ? clickAreaSize : 80;
+    
+    // 调整位置使指示条居中
+    let finalX = indicatorX;
+    let finalY = indicatorY;
+    if (edge === 'left') {
+      finalY = ballY;
+    } else if (edge === 'right') {
+      finalX = workArea.x + screenWidth - finalWidth;
+      finalY = ballY;
+    } else if (edge === 'top') {
+      finalX = ballX;
+    } else if (edge === 'bottom') {
+      finalX = ballX;
+      finalY = workArea.y + screenHeight - finalHeight;
+    }
+    
     const indicatorWindow = new BrowserWindow({
-      width: indicatorWidth,
-      height: indicatorHeight,
-      x: indicatorX,
-      y: indicatorY,
+      width: finalWidth,
+      height: finalHeight,
+      x: finalX,
+      y: finalY,
       frame: false,
       transparent: true,
       alwaysOnTop: true,
       resizable: false,
       skipTaskbar: true,
-      focusable: false,
+      focusable: true, // 必须可聚焦才能接收点击
       hasShadow: false,
       webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
+        nodeIntegration: true,
+        contextIsolation: false,
       },
     });
     
-    // 加载指示器HTML
+    // 根据边缘方向设置指示条样式
+    const isVertical = edge === 'left' || edge === 'right';
+    const borderRadius = edge === 'left' ? '0 8px 8px 0' : 
+                         edge === 'right' ? '8px 0 0 8px' : 
+                         edge === 'top' ? '0 0 8px 8px' : '8px 8px 0 0';
+    
+    // 加载指示器HTML - 更明显的样式
     const indicatorHtml = `
       <!DOCTYPE html>
       <html>
         <head>
           <style>
-            * { margin: 0; padding: 0; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
             html, body { 
-              background: transparent; 
+              background: transparent !important;
               overflow: hidden;
-            }
-            .indicator {
               width: 100%;
               height: 100%;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              border-radius: ${edge === 'left' || edge === 'right' ? '0 3px 3px 0' : '0 0 3px 3px'};
-              opacity: 0.8;
-              transition: opacity 0.2s, transform 0.2s;
-              cursor: pointer;
             }
-            .indicator:hover {
-              opacity: 1;
-              transform: ${edge === 'left' ? 'translateX(3px)' : edge === 'right' ? 'translateX(-3px)' : edge === 'top' ? 'translateY(3px)' : 'translateY(-3px)'};
+            .indicator {
+              width: ${isVertical ? '8px' : '100%'};
+              height: ${isVertical ? '100%' : '8px'};
+              background: linear-gradient(${isVertical ? '180deg' : '90deg'}, #667eea 0%, #764ba2 50%, #667eea 100%);
+              border-radius: ${borderRadius};
+              cursor: pointer;
+              position: absolute;
+              ${edge === 'left' ? 'left: 0;' : ''}
+              ${edge === 'right' ? 'right: 0;' : ''}
+              ${edge === 'top' ? 'top: 0;' : ''}
+              ${edge === 'bottom' ? 'bottom: 0;' : ''}
+              box-shadow: ${edge === 'left' ? '2px 0 8px rgba(102, 126, 234, 0.5)' : 
+                           edge === 'right' ? '-2px 0 8px rgba(102, 126, 234, 0.5)' :
+                           edge === 'top' ? '0 2px 8px rgba(102, 126, 234, 0.5)' :
+                           '0 -2px 8px rgba(102, 126, 234, 0.5)'};
+              animation: pulse 2s ease-in-out infinite;
+            }
+            @keyframes pulse {
+              0%, 100% { opacity: 0.7; }
+              50% { opacity: 1; }
+            }
+            .click-area {
+              width: 100%;
+              height: 100%;
+              position: absolute;
+              top: 0;
+              left: 0;
+              cursor: pointer;
             }
           </style>
         </head>
         <body>
+          <div class="click-area" id="clickArea"></div>
           <div class="indicator"></div>
+          <script>
+            document.getElementById('clickArea').addEventListener('click', function() {
+              const { ipcRenderer } = require('electron');
+              ipcRenderer.send('edge-indicator-clicked');
+            });
+            document.getElementById('clickArea').addEventListener('mouseenter', function() {
+              const { ipcRenderer } = require('electron');
+              ipcRenderer.send('edge-indicator-hover');
+            });
+          </script>
         </body>
       </html>
     `;
@@ -520,21 +574,28 @@ class WindowManager {
     // 保存指示器窗口引用
     this.floatBallEdgeState.indicatorWindow = indicatorWindow;
     
-    // 监听指示器点击 - 显示悬浮球
-    indicatorWindow.webContents.on('did-finish-load', () => {
-      indicatorWindow.webContents.executeJavaScript(`
-        document.querySelector('.indicator').addEventListener('click', () => {
-          window.close();
-        });
-        document.querySelector('.indicator').addEventListener('mouseenter', () => {
-          // 鼠标进入时通知主进程显示悬浮球
-        });
-      `);
+    // 监听指示器的IPC事件
+    const { ipcMain } = require('electron');
+    
+    // 移除之前的监听器（如果有）
+    ipcMain.removeAllListeners('edge-indicator-clicked');
+    ipcMain.removeAllListeners('edge-indicator-hover');
+    
+    // 点击指示器 - 显示悬浮球
+    ipcMain.on('edge-indicator-clicked', () => {
+      console.log('边缘指示器被点击，显示悬浮球');
+      this.showFloatBallFromEdge();
     });
     
-    // 监听鼠标进入指示器区域
-    indicatorWindow.on('focus', () => {
+    // 鼠标进入指示器 - 也显示悬浮球
+    ipcMain.on('edge-indicator-hover', () => {
+      console.log('鼠标进入边缘指示器，显示悬浮球');
       this.showFloatBallFromEdge();
+    });
+    
+    // 监听加载完成
+    indicatorWindow.webContents.on('did-finish-load', () => {
+      console.log('边缘指示器加载完成');
     });
     
     // 监听指示器关闭
@@ -542,6 +603,10 @@ class WindowManager {
       if (this.floatBallEdgeState) {
         this.floatBallEdgeState.indicatorWindow = null;
       }
+      // 清理IPC监听器
+      const { ipcMain } = require('electron');
+      ipcMain.removeAllListeners('edge-indicator-clicked');
+      ipcMain.removeAllListeners('edge-indicator-hover');
     });
   }
 
