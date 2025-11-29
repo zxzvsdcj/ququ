@@ -55,8 +55,24 @@ const FloatBall = () => {
     }
   }, [isDragging]);
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = useCallback(async () => {
     setIsDragging(false);
+    
+    // 拖拽结束时检查是否在边缘
+    if (window.electronAPI && window.electronAPI.getWindowPosition && window.electronAPI.checkFloatBallEdge) {
+      try {
+        const pos = await window.electronAPI.getWindowPosition();
+        const edgeResult = await window.electronAPI.checkFloatBallEdge(pos.x, pos.y);
+        
+        if (edgeResult.shouldHide && edgeResult.edge) {
+          console.log('🎯 悬浮球拖拽到边缘，准备隐藏:', edgeResult.edge);
+          // 隐藏到边缘
+          await window.electronAPI.hideFloatBallToEdge(edgeResult.edge);
+        }
+      } catch (error) {
+        console.error('检查边缘失败:', error);
+      }
+    }
   }, []);
 
   // 添加全局鼠标事件监听

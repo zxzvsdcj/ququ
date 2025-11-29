@@ -94,8 +94,16 @@ class TrayManager {
       {
         label: "显示悬浮球",
         click: () => {
-          if (windowManager && windowManager.switchUIMode) {
-            windowManager.switchUIMode('float');
+          if (windowManager) {
+            // 先检查是否隐藏在边缘
+            const edgeState = windowManager.getFloatBallEdgeState();
+            if (edgeState && edgeState.isHidden) {
+              // 从边缘显示
+              windowManager.showFloatBallFromEdge();
+            } else {
+              // 正常切换到悬浮球模式
+              windowManager.switchUIMode('float');
+            }
           }
         }
       },

@@ -239,6 +239,14 @@ class WindowManager {
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
 
+    // 悬浮球边缘隐藏状态
+    this.floatBallEdgeState = {
+      isHidden: false,
+      hiddenEdge: null, // 'left', 'right', 'top', 'bottom'
+      originalPosition: null,
+      indicatorWindow: null
+    };
+
     // 透明窗口配置
     this.floatBallWindow = new BrowserWindow({
       width: 80,
@@ -354,6 +362,262 @@ class WindowManager {
     if (this.floatBallWindow) {
       this.floatBallWindow.hide();
     }
+    // 同时隐藏边缘指示器
+    this.hideEdgeIndicator();
+  }
+
+  /**
+   * 检查悬浮球是否在屏幕边缘，如果是则隐藏到边缘
+   * @param {number} x - 窗口x坐标
+   * @param {number} y - 窗口y坐标
+   * @returns {Object} { shouldHide: boolean, edge: string|null }
+   */
+  checkFloatBallEdge(x, y) {
+    const { screen } = require('electron');
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+    const workArea = primaryDisplay.workArea;
+    
+    const EDGE_THRESHOLD = 20; // 边缘检测阈值（像素）
+    const ballSize = 80;
+    
+    // 检测四个边缘
+    if (x <= workArea.x + EDGE_THRESHOLD) {
+      return { shouldHide: true, edge: 'left' };
+    }
+    if (x + ballSize >= workArea.x + screenWidth - EDGE_THRESHOLD) {
+      return { shouldHide: true, edge: 'right' };
+    }
+    if (y <= workArea.y + EDGE_THRESHOLD) {
+      return { shouldHide: true, edge: 'top' };
+    }
+    if (y + ballSize >= workArea.y + screenHeight - EDGE_THRESHOLD) {
+      return { shouldHide: true, edge: 'bottom' };
+    }
+    
+    return { shouldHide: false, edge: null };
+  }
+
+  /**
+   * 将悬浮球隐藏到边缘
+   * @param {string} edge - 边缘方向: 'left', 'right', 'top', 'bottom'
+   */
+  hideFloatBallToEdge(edge) {
+    if (!this.floatBallWindow || this.floatBallWindow.isDestroyed()) return;
+    
+    const { screen } = require('electron');
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+    const workArea = primaryDisplay.workArea;
+    
+    // 保存原始位置
+    const [currentX, currentY] = this.floatBallWindow.getPosition();
+    this.floatBallEdgeState = {
+      isHidden: true,
+      hiddenEdge: edge,
+      originalPosition: { x: currentX, y: currentY },
+      indicatorWindow: null
+    };
+    
+    // 隐藏悬浮球
+    this.floatBallWindow.hide();
+    
+    // 创建边缘指示器
+    this.createEdgeIndicator(edge, currentX, currentY, screenWidth, screenHeight, workArea);
+  }
+
+  /**
+   * 创建边缘指示器窗口
+   */
+  createEdgeIndicator(edge, ballX, ballY, screenWidth, screenHeight, workArea) {
+    // 如果已存在指示器，先销毁
+    this.hideEdgeIndicator();
+    
+    let indicatorWidth, indicatorHeight, indicatorX, indicatorY;
+    
+    // 根据边缘方向设置指示器位置和大小
+    switch (edge) {
+      case 'left':
+        indicatorWidth = 6;
+        indicatorHeight = 60;
+        indicatorX = workArea.x;
+        indicatorY = ballY + 10;
+        break;
+      case 'right':
+        indicatorWidth = 6;
+        indicatorHeight = 60;
+        indicatorX = workArea.x + screenWidth - indicatorWidth;
+        indicatorY = ballY + 10;
+        break;
+      case 'top':
+        indicatorWidth = 60;
+        indicatorHeight = 6;
+        indicatorX = ballX + 10;
+        indicatorY = workArea.y;
+        break;
+      case 'bottom':
+        indicatorWidth = 60;
+        indicatorHeight = 6;
+        indicatorX = ballX + 10;
+        indicatorY = workArea.y + screenHeight - indicatorHeight;
+        break;
+    }
+    
+    // 创建指示器窗口
+    const indicatorWindow = new BrowserWindow({
+      width: indicatorWidth,
+      height: indicatorHeight,
+      x: indicatorX,
+      y: indicatorY,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      resizable: false,
+      skipTaskbar: true,
+      focusable: false,
+      hasShadow: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+    
+    // 加载指示器HTML
+    const indicatorHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            * { margin: 0; padding: 0; }
+            html, body { 
+              background: transparent; 
+              overflow: hidden;
+            }
+            .indicator {
+              width: 100%;
+              height: 100%;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              border-radius: ${edge === 'left' || edge === 'right' ? '0 3px 3px 0' : '0 0 3px 3px'};
+              opacity: 0.8;
+              transition: opacity 0.2s, transform 0.2s;
+              cursor: pointer;
+            }
+            .indicator:hover {
+              opacity: 1;
+              transform: ${edge === 'left' ? 'translateX(3px)' : edge === 'right' ? 'translateX(-3px)' : edge === 'top' ? 'translateY(3px)' : 'translateY(-3px)'};
+            }
+          </style>
+        </head>
+        <body>
+          <div class="indicator"></div>
+        </body>
+      </html>
+    `;
+    
+    indicatorWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(indicatorHtml)}`);
+    indicatorWindow.show();
+    
+    // 保存指示器窗口引用
+    this.floatBallEdgeState.indicatorWindow = indicatorWindow;
+    
+    // 监听指示器点击 - 显示悬浮球
+    indicatorWindow.webContents.on('did-finish-load', () => {
+      indicatorWindow.webContents.executeJavaScript(`
+        document.querySelector('.indicator').addEventListener('click', () => {
+          window.close();
+        });
+        document.querySelector('.indicator').addEventListener('mouseenter', () => {
+          // 鼠标进入时通知主进程显示悬浮球
+        });
+      `);
+    });
+    
+    // 监听鼠标进入指示器区域
+    indicatorWindow.on('focus', () => {
+      this.showFloatBallFromEdge();
+    });
+    
+    // 监听指示器关闭
+    indicatorWindow.on('closed', () => {
+      if (this.floatBallEdgeState) {
+        this.floatBallEdgeState.indicatorWindow = null;
+      }
+    });
+  }
+
+  /**
+   * 隐藏边缘指示器
+   */
+  hideEdgeIndicator() {
+    if (this.floatBallEdgeState && this.floatBallEdgeState.indicatorWindow) {
+      try {
+        if (!this.floatBallEdgeState.indicatorWindow.isDestroyed()) {
+          this.floatBallEdgeState.indicatorWindow.close();
+        }
+      } catch (e) {
+        // 忽略关闭错误
+      }
+      this.floatBallEdgeState.indicatorWindow = null;
+    }
+  }
+
+  /**
+   * 从边缘显示悬浮球
+   */
+  showFloatBallFromEdge() {
+    if (!this.floatBallWindow || this.floatBallWindow.isDestroyed()) return;
+    if (!this.floatBallEdgeState || !this.floatBallEdgeState.isHidden) return;
+    
+    // 隐藏指示器
+    this.hideEdgeIndicator();
+    
+    // 恢复悬浮球位置
+    const { originalPosition, hiddenEdge } = this.floatBallEdgeState;
+    
+    if (originalPosition) {
+      // 稍微偏移一点，避免立即触发再次隐藏
+      let newX = originalPosition.x;
+      let newY = originalPosition.y;
+      
+      switch (hiddenEdge) {
+        case 'left':
+          newX = Math.max(originalPosition.x, 30);
+          break;
+        case 'right':
+          const { screen } = require('electron');
+          const { width } = screen.getPrimaryDisplay().workAreaSize;
+          newX = Math.min(originalPosition.x, width - 110);
+          break;
+        case 'top':
+          newY = Math.max(originalPosition.y, 30);
+          break;
+        case 'bottom':
+          const { height } = require('electron').screen.getPrimaryDisplay().workAreaSize;
+          newY = Math.min(originalPosition.y, height - 110);
+          break;
+      }
+      
+      this.floatBallWindow.setPosition(Math.round(newX), Math.round(newY));
+    }
+    
+    // 显示悬浮球
+    this.floatBallWindow.show();
+    this.floatBallWindow.focus();
+    
+    // 重置状态
+    this.floatBallEdgeState = {
+      isHidden: false,
+      hiddenEdge: null,
+      originalPosition: null,
+      indicatorWindow: null
+    };
+  }
+
+  /**
+   * 获取悬浮球边缘隐藏状态
+   */
+  getFloatBallEdgeState() {
+    return this.floatBallEdgeState || { isHidden: false, hiddenEdge: null };
   }
 
   closeFloatBallWindow() {

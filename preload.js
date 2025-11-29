@@ -14,6 +14,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // 悬浮球窗口位置控制（用于JS拖拽）
   getWindowPosition: () => ipcRenderer.invoke("get-window-position"),
   setWindowPosition: (x, y) => ipcRenderer.invoke("set-window-position", x, y),
+  
+  // 悬浮球边缘隐藏功能
+  checkFloatBallEdge: (x, y) => ipcRenderer.invoke("check-float-ball-edge", x, y),
+  hideFloatBallToEdge: (edge) => ipcRenderer.invoke("hide-float-ball-to-edge", edge),
+  showFloatBallFromEdge: () => ipcRenderer.invoke("show-float-ball-from-edge"),
+  getFloatBallEdgeState: () => ipcRenderer.invoke("get-float-ball-edge-state"),
 
   // 录音相关
   startRecording: () => ipcRenderer.invoke("start-recording"),

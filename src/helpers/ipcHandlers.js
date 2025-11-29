@@ -316,6 +316,40 @@ class IPCHandlers {
       return false;
     });
 
+    // 悬浮球边缘检测
+    ipcMain.handle("check-float-ball-edge", (event, x, y) => {
+      if (this.windowManager) {
+        return this.windowManager.checkFloatBallEdge(x, y);
+      }
+      return { shouldHide: false, edge: null };
+    });
+
+    // 悬浮球隐藏到边缘
+    ipcMain.handle("hide-float-ball-to-edge", (event, edge) => {
+      if (this.windowManager) {
+        this.windowManager.hideFloatBallToEdge(edge);
+        return { success: true };
+      }
+      return { success: false };
+    });
+
+    // 从边缘显示悬浮球
+    ipcMain.handle("show-float-ball-from-edge", () => {
+      if (this.windowManager) {
+        this.windowManager.showFloatBallFromEdge();
+        return { success: true };
+      }
+      return { success: false };
+    });
+
+    // 获取悬浮球边缘状态
+    ipcMain.handle("get-float-ball-edge-state", () => {
+      if (this.windowManager) {
+        return this.windowManager.getFloatBallEdgeState();
+      }
+      return { isHidden: false, hiddenEdge: null };
+    });
+
     // 悬浮球右键菜单
     ipcMain.handle("show-float-ball-context-menu", (event) => {
       const { Menu } = require("electron");
@@ -427,6 +461,24 @@ class IPCHandlers {
           const success = this.hotkeyManager.registerHotkey(hotkey, () => {
             // 只发送热键触发事件到当前可见的窗口（避免重复触发）
             this.logger.info(`热键 ${hotkey} 被触发`);
+            
+            // 检查悬浮球是否隐藏在边缘
+            const edgeState = this.windowManager ? this.windowManager.getFloatBallEdgeState() : null;
+            const floatBallHiddenAtEdge = edgeState && edgeState.isHidden;
+            
+            // 如果悬浮球隐藏在边缘，先显示它再发送事件
+            if (floatBallHiddenAtEdge) {
+              this.logger.info(`悬浮球隐藏在边缘，先显示再触发录音`);
+              this.windowManager.showFloatBallFromEdge();
+              // 延迟发送事件，等待窗口显示
+              setTimeout(() => {
+                if (this.windowManager.floatBallWindow && !this.windowManager.floatBallWindow.isDestroyed()) {
+                  this.windowManager.floatBallWindow.webContents.send("hotkey-triggered", { hotkey });
+                  this.logger.info(`热键事件已发送到悬浮球窗口（从边缘恢复）`);
+                }
+              }, 100);
+              return;
+            }
             
             // 检查悬浮球窗口是否可见
             const floatBallVisible = this.windowManager && 
